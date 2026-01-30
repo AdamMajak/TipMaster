@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>API Football Widgets Test</title>
+  <link rel="stylesheet" href="../../app.css">
+</head>
+<body>
+
+  <h1>API Football Widgets Test</h1>
+
+  <!-- Zobrazenie všetkých líg -->
+  <section>
+    <h2>Leagues Widget</h2>
+    <api-sports-widget data-type="leagues"></api-sports-widget>
+  </section>
+
+  <!-- Konfigurovaný widget s API kľúčom -->
+  <section>
+    <h2>Configured Widget</h2>
+    <api-sports-widget
+      data-type="config"
+      data-key="cd88bbcbb38003bd2530c1970bc67c41"
+      data-sport="football"
+      data-lang="en"
+      data-theme="white"
+      data-show-errors="true"
+    ></api-sports-widget>
+  </section>
+
+  <!-- Načítanie skriptu API-FOOTBALL widgetov -->
+  <script type="module" src="https://widgets.api-sports.io/3.1.0/widgets.js"></script>
+
+  <!-- Naše vlastné TS pre inicializáciu widgetov -->
+  <script src="test.js" type="module"></script>
+</body>
+</html>

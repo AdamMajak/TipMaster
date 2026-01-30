@@ -1,12 +1,10 @@
-import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
-
-@Component({
-  selector: 'app-root',
-  imports: [RouterOutlet],
-  templateUrl: './app.html',
-  styleUrl: './app.css'
-})
+// Pridaj export
 export class App {
-  protected readonly title = signal('TipMaster');
+  static bootstrap() {
+    console.log('Standalone Angular app bootstrap');
+    // Tu môžeš spustiť inicializáciu widgetov, routovanie atď.
+  }
 }
+
+// Ak chceš automaticky bootstrapovať
+App.bootstrap();
