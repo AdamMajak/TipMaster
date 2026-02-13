@@ -1,5 +1,27 @@
-<h2>MMA Betting Tips</h2>
-<p><strong>Today's Advice:</strong> Experienced fighters usually win by decision. Watch for submission specialists in ground fights.</p>
-<api-sports-widget data-type="config" data-key="cd88bbcbb38003bd2530c1970bc67c41" data-sport="mma" data-lang="en" data-theme="white" data-show-errors="true"></api-sports-widget>
-<api-sports-widget data-type="leagues" data-sport="mma"></api-sports-widget>
-<api-sports-widget data-type="games" data-sport="mma"></api-sports-widget>
+<section class="mma-container">
+  <ng-container *ngIf="isLive; else fallback">
+    <!-- CONFIG widget musí byť prvý -->
+    <api-sports-widget
+      data-type="config"
+      data-key="cd88bbcbb38003bd2530c1970bc67c41"
+      data-sport="mma"
+      data-lang="en"
+      data-theme="white"
+      data-show-errors="true">
+    </api-sports-widget>
+
+    <!-- Fights widget -->
+    <api-sports-widget data-type="fights"></api-sports-widget>
+  </ng-container>
+
+  <ng-template #fallback>
+    <div class="fallback">
+      <h3>Upcoming MMA Events</h3>
+      <ul>
+        <li>UFC Fight Night</li>
+        <li>Bellator Main Event</li>
+        <li>PFL Playoffs</li>
+      </ul>
+    </div>
+  </ng-template>
+</section>

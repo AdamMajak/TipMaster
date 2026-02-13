@@ -1,0 +1,28 @@
+.mma-container {
+  max-width: 1100px;
+  margin: 40px auto;
+  padding: 20px;
+  font-family: Arial, Helvetica, sans-serif;
+  color: #222;
+}
+
+.fallback {
+  background: #f4f4f4;
+  padding: 20px;
+  border-radius: 10px;
+  text-align: center;
+}
+
+.fallback h3 {
+  margin-top: 0;
+}
+
+.fallback ul {
+  list-style: none;
+  padding-left: 0;
+}
+
+.fallback li {
+  padding: 5px 0;
+  border-bottom: 1px solid #ddd;
+}
