@@ -7,4 +7,5 @@ export const routes: Routes = [
   { path: 'mma', loadComponent: () => import('./mma/mma').then(m => m.Mma) },
   { path: 'basketball', loadComponent: () => import('./basketball/basketball').then(m => m.Basketball) },
   { path: 'baseball', loadComponent: () => import('./baseball/baseball').then(m => m.Baseball) },
+  { path: '**', redirectTo: '' },
 ];

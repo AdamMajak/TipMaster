@@ -1,5 +1,57 @@
-<h2>Baseball Betting Tips</h2>
-<p><strong>Today's Advice:</strong> Starting pitchers matter a lot. Check weather conditions for outdoor games.</p>
-<api-sports-widget data-type="config" data-key="cd88bbcbb38003bd2530c1970bc67c41" data-sport="baseball" data-lang="en" data-theme="white" data-show-errors="true"></api-sports-widget>
-<api-sports-widget data-type="leagues" data-sport="baseball"></api-sports-widget>
-<api-sports-widget data-type="games" data-sport="baseball"></api-sports-widget>
+<section class="sport-page">
+  <header class="sport-hero">
+    <div>
+      <p class="sport-tag">BASEBALL</p>
+      <h2>{{ pageTitle }}</h2>
+      <p>{{ subtitle }}</p>
+    </div>
+    <span class="sport-status">Live feed</span>
+  </header>
+
+  <section class="widget-block">
+    @if (error) {
+      <p class="meta">{{ error }}</p>
+    } @else if (loading) {
+      <p class="meta">Loading baseball odds...</p>
+    } @else {
+      <div class="odds-grid">
+        @for (match of matches; track match.id) {
+          <button
+            type="button"
+            class="odds-card"
+            [class.active]="selectedMatch?.id === match.id"
+            (click)="selectMatch(match)">
+            <div class="teams">
+              <strong>{{ match.homeTeam }}</strong>
+              <span>vs</span>
+              <strong>{{ match.awayTeam }}</strong>
+            </div>
+            <p class="meta">{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} | {{ match.bookmaker }}</p>
+            <div class="prices">
+              @for (odd of match.odds; track odd.name) {
+                <span>{{ odd.name }} <b>{{ odd.price }}</b></span>
+              }
+            </div>
+          </button>
+        }
+      </div>
+
+      @if (selectedMatch) {
+        <article class="detail-card">
+          <h3>{{ selectedMatch.homeTeam }} vs {{ selectedMatch.awayTeam }}</h3>
+          <p class="meta">
+            Kickoff: {{ selectedMatch.kickoff | date: 'EEEE, d MMMM y, HH:mm' }} | Bookmaker: {{ selectedMatch.bookmaker }}
+          </p>
+          <div class="detail-prices">
+            @for (odd of selectedMatch.odds; track odd.name) {
+              <div>
+                <span>{{ odd.name }}</span>
+                <strong>{{ odd.price }}</strong>
+              </div>
+            }
+          </div>
+        </article>
+      }
+    }
+  </section>
+</section>

@@ -1,0 +1,164 @@
+:host {
+  display: block;
+}
+
+.sport-page {
+  display: grid;
+  gap: 12px;
+}
+
+.sport-hero,
+.widget-block {
+  border-radius: 14px;
+  border: 1px solid var(--line);
+  background: linear-gradient(155deg, var(--panel), #0e192c);
+}
+
+.sport-hero {
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.sport-tag {
+  margin: 0;
+  color: #8ea1c4;
+  font-size: 0.74rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  font-weight: 700;
+}
+
+.sport-hero h2 {
+  margin: 6px 0;
+  color: #fff;
+}
+
+.sport-hero p {
+  margin: 0;
+  color: var(--text-soft);
+}
+
+.sport-status {
+  border-radius: 999px;
+  background: #24416a;
+  color: #dce9ff;
+  font-size: 0.8rem;
+  padding: 8px 12px;
+  border: 1px solid #365785;
+}
+
+.widget-block {
+  padding: 12px;
+}
+
+.meta {
+  margin: 0;
+  color: #98afd5;
+  font-size: 0.86rem;
+}
+
+.odds-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+  gap: 10px;
+}
+
+.odds-card {
+  border: 1px solid #314a72;
+  background: #16243c;
+  border-radius: 10px;
+  padding: 10px;
+  text-align: left;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  touch-action: manipulation;
+  color: inherit;
+}
+
+.odds-card:hover {
+  border-color: #4b73ab;
+  transform: translateY(-1px);
+}
+
+.odds-card.active {
+  border-color: #ffb14a;
+  box-shadow: 0 0 0 1px rgba(255, 177, 74, 0.3);
+}
+
+.teams {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  color: #f2f6ff;
+}
+
+.prices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.prices span {
+  border-radius: 999px;
+  border: 1px solid #3f5f8b;
+  background: #203252;
+  padding: 5px 9px;
+  color: #dce9ff;
+  font-size: 0.82rem;
+}
+
+.prices b {
+  margin-left: 4px;
+  color: #ffcb88;
+}
+
+.detail-card {
+  margin-top: 14px;
+  border: 1px solid #456892;
+  background: linear-gradient(145deg, #192b47, #121f34);
+  border-radius: 12px;
+  padding: 14px;
+}
+
+.detail-card h3 {
+  margin: 0 0 8px;
+  color: #eff5ff;
+}
+
+.detail-prices {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+  gap: 8px;
+  margin-top: 10px;
+}
+
+.detail-prices div {
+  border: 1px solid #3d5f8d;
+  border-radius: 10px;
+  padding: 8px;
+  background: #1a2d4b;
+}
+
+.detail-prices span {
+  display: block;
+  color: #9fb5d8;
+  font-size: 0.78rem;
+}
+
+.detail-prices strong {
+  display: block;
+  color: #ffd198;
+  margin-top: 4px;
+  font-size: 1.05rem;
+}
+
+@media (max-width: 800px) {
+  .sport-hero {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+}

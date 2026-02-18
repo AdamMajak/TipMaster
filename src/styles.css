@@ -1,1 +1,40 @@
-/* You can add global styles to this file, and also import other style files */
+:root {
+  --bg-main: #060c18;
+  --bg-alt: #0d172b;
+  --panel: #121f35;
+  --line: #253856;
+  --text-main: #edf3ff;
+  --text-soft: #a4b3cd;
+  --accent: #ff9a2a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: 'Space Grotesk', sans-serif;
+  background:
+    radial-gradient(900px 350px at 15% -10%, rgba(49, 79, 131, 0.35), transparent),
+    radial-gradient(700px 420px at 85% 0%, rgba(255, 154, 42, 0.16), transparent),
+    linear-gradient(180deg, var(--bg-alt), var(--bg-main));
+}
+
+h2,
+h3,
+h4 {
+  font-family: 'Sora', sans-serif;
+}
+
+api-sports-widget {
+  display: block;
+  margin: 0;
+  border-radius: 12px;
+  overflow: hidden;
+}

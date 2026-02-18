@@ -1,14 +1,24 @@
-<header>
-  <h1>TipMaster</h1>
-  <nav>
-    <a routerLink="/">Home</a>
-    <a routerLink="/football">Football</a>
-    <a routerLink="/hockey">Hockey</a>
-    <a routerLink="/mma">MMA</a>
-    <a routerLink="/basketball">Basketball</a>
-    <a routerLink="/baseball">Baseball</a>
-  </nav>
-</header>
-<main>
-  <router-outlet></router-outlet>
-</main>
+<div class="app-shell">
+  <header class="topbar">
+    <div class="brand">
+      <span class="logo-dot"></span>
+      <div>
+        <h1>TipMaster</h1>
+        <p>Sports Widgets Hub</p>
+      </div>
+    </div>
+
+    <nav class="main-nav" aria-label="Main navigation">
+      <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+      <a routerLink="/football" routerLinkActive="active">Football</a>
+      <a routerLink="/hockey" routerLinkActive="active">Hockey</a>
+      <a routerLink="/mma" routerLinkActive="active">MMA</a>
+      <a routerLink="/basketball" routerLinkActive="active">Basketball</a>
+      <a routerLink="/baseball" routerLinkActive="active">Baseball</a>
+    </nav>
+  </header>
+
+  <main class="content">
+    <router-outlet></router-outlet>
+  </main>
+</div>

@@ -1,11 +1,9 @@
 import { Component, signal } from '@angular/core';
-import { RouterOutlet, RouterLink } from '@angular/router';
-import { CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })

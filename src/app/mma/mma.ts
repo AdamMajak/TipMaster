@@ -1,33 +1,65 @@
-import { Component, AfterViewInit, CUSTOM_ELEMENTS_SCHEMA } from '@angular/core';
+import { DatePipe } from '@angular/common';
+import { Component, OnInit } from '@angular/core';
+import { OddsEvent, OddsService } from '../shared/odds.service';
+import { SPORT_KEYS } from '../shared/rapidapi-odds';
+
+interface SportMatch {
+  id: string;
+  kickoff: string;
+  homeTeam: string;
+  awayTeam: string;
+  bookmaker: string;
+  odds: Array<{ name: string; price: number }>;
+}
 
 @Component({
   selector: 'app-mma',
   standalone: true,
+  imports: [DatePipe],
   templateUrl: './mma.html',
   styleUrls: ['./mma.css'],
-  schemas: [CUSTOM_ELEMENTS_SCHEMA],
 })
-export class Mma implements AfterViewInit {
+export class Mma implements OnInit {
+  readonly pageTitle = 'MMA Odds';
+  readonly subtitle = 'Fight odds from RapidAPI.';
 
-  // prepínač pre lokálny fallback alebo live widget
-  isLive = false; // false = fallback (localhost), true = live (Firebase)
+  loading = true;
+  error = '';
+  matches: SportMatch[] = [];
+  selectedMatch: SportMatch | null = null;
 
-  ngAfterViewInit(): void {
-    if (!this.isLive) return; // lokálne iba fallback
+  constructor(private readonly oddsService: OddsService) {}
 
-    // Dynamicky načítanie scriptu
-    if (!document.querySelector('script[src*="widgets.api-sports.io"]')) {
-      const script = document.createElement('script');
-      script.src = 'https://widgets.api-sports.io/2.0.3/widgets.js';
-      script.async = true;
-      script.onload = () => {
-        (window as any).APISportsWidgets?.init?.();
-      };
-      document.body.appendChild(script);
-    } else {
-      // Script už existuje, re-init widget
-      (window as any).APISportsWidgets?.init?.();
-    }
+  ngOnInit(): void {
+    this.oddsService.getOddsBySport(SPORT_KEYS.mma).subscribe({
+      next: (events) => {
+        this.matches = events.slice(0, 16).map((event) => this.toSportMatch(event));
+        this.selectedMatch = this.matches[0] ?? null;
+        this.loading = false;
+      },
+      error: (err) => {
+        this.error = err?.message ?? 'Failed to load MMA odds.';
+        this.loading = false;
+      },
+    });
   }
 
+  private toSportMatch(event: OddsEvent): SportMatch {
+    const fallbackBookmaker = { title: 'N/A', markets: [{ outcomes: [] as Array<{ name: string; price: number }> }] };
+    const bookmaker = event.bookmakers?.find((b) => b.markets?.some((m) => m.key === 'h2h')) ?? event.bookmakers?.[0] ?? fallbackBookmaker;
+    const h2h = bookmaker.markets?.find((m) => m.key === 'h2h') ?? bookmaker.markets?.[0];
+
+    return {
+      id: event.id,
+      kickoff: event.commence_time,
+      homeTeam: event.home_team,
+      awayTeam: event.away_team,
+      bookmaker: bookmaker.title,
+      odds: (h2h?.outcomes ?? []).slice(0, 3),
+    };
+  }
+
+  selectMatch(match: SportMatch): void {
+    this.selectedMatch = match;
+  }
 }

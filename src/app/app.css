@@ -1,55 +1,97 @@
-body {
-  font-family: Arial, sans-serif;
+:host {
+  display: block;
+}
+
+.app-shell {
+  min-height: 100vh;
+  color: var(--text-main);
+}
+
+.topbar {
+  position: sticky;
+  top: 0;
+  z-index: 40;
+  background: rgba(6, 12, 24, 0.92);
+  backdrop-filter: blur(10px);
+  border-bottom: 1px solid var(--line);
+  padding: 14px 20px;
+  display: flex;
+  gap: 20px;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.logo-dot {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 30% 30%, #ffd18d, var(--accent));
+  box-shadow: 0 0 24px rgba(255, 145, 32, 0.5);
+}
+
+.brand h1 {
   margin: 0;
-  padding: 0;
-  background-color: #f4f4f4;
+  font-family: 'Sora', sans-serif;
+  font-size: 1.1rem;
+  font-weight: 700;
 }
 
-header {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  color: white;
-  padding: 20px;
-  text-align: center;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+.brand p {
+  margin: 1px 0 0;
+  color: var(--text-soft);
+  font-size: 0.72rem;
 }
 
-h1 {
-  margin: 0;
-  font-size: 2.5em;
+.main-nav {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
-nav {
-  margin-top: 20px;
-}
-
-nav a {
-  margin: 0 15px;
-  color: white;
+.main-nav a {
+  color: var(--text-soft);
   text-decoration: none;
-  padding: 10px 20px;
-  border-radius: 5px;
-  transition: background-color 0.3s;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid transparent;
+  font-size: 0.88rem;
+  transition: 0.2s ease;
+  cursor: pointer;
+  touch-action: manipulation;
 }
 
-nav a:hover {
-  background-color: rgba(255,255,255,0.2);
+.main-nav a:hover {
+  color: var(--text-main);
+  border-color: var(--line);
+  background: rgba(41, 59, 90, 0.55);
 }
 
-main {
-  padding: 20px;
-  max-width: 1200px;
+.main-nav a.active {
+  color: #101927;
+  background: var(--accent);
+  border-color: transparent;
+  font-weight: 700;
+}
+
+.content {
+  max-width: 1250px;
   margin: 0 auto;
+  padding: 22px;
 }
 
-h2 {
-  color: #333;
-  border-bottom: 2px solid #667eea;
-  padding-bottom: 10px;
-}
+@media (max-width: 860px) {
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+  }
 
-api-sports-widget {
-  margin: 20px 0;
-  border-radius: 8px;
-  overflow: hidden;
-  box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+  .content {
+    padding: 14px;
+  }
 }
