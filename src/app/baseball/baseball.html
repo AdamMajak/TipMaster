@@ -13,6 +13,8 @@
       <p class="meta">{{ error }}</p>
     } @else if (loading) {
       <p class="meta">Loading baseball odds...</p>
+    } @else if (!matches.length) {
+      <p class="meta">No baseball opportunities are available right now.</p>
     } @else {
       <div class="odds-grid">
         @for (match of matches; track match.id) {

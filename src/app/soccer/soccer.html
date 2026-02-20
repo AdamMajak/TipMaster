@@ -1,7 +1,7 @@
 <section class="sport-page">
   <header class="sport-hero">
     <div>
-      <p class="sport-tag">AMERICAN FOOTBALL</p>
+      <p class="sport-tag">SOCCER</p>
       <h2>{{ pageTitle }}</h2>
       <p>{{ subtitle }}</p>
     </div>
@@ -12,9 +12,9 @@
     @if (error) {
       <p class="meta">{{ error }}</p>
     } @else if (loading) {
-      <p class="meta">Loading american football odds...</p>
+      <p class="meta">Loading soccer odds...</p>
     } @else if (!matches.length) {
-      <p class="meta">No american football opportunities are available right now.</p>
+      <p class="meta">No soccer opportunities are available right now.</p>
     } @else {
       <div class="odds-grid">
         @for (match of matches; track match.id) {

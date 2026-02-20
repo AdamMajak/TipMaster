@@ -19,8 +19,8 @@ interface SportMatch {
   styleUrl: './football.css',
 })
 export class Football implements OnInit {
-  readonly pageTitle = 'Football Odds';
-  readonly subtitle = 'Premier League live prices from RapidAPI.';
+  readonly pageTitle = 'American Football Odds';
+  readonly subtitle = 'NFL, NCAA, CFL and UFL prices from RapidAPI.';
 
   loading = true;
   error = '';
@@ -37,7 +37,7 @@ export class Football implements OnInit {
         this.loading = false;
       },
       error: (err) => {
-        this.error = err?.message ?? 'Failed to load football odds.';
+        this.error = err?.message ?? 'Failed to load american football odds.';
         this.loading = false;
       },
     });

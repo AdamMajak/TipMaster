@@ -66,6 +66,16 @@
   touch-action: manipulation;
 }
 
+.main-nav-muted {
+  color: var(--text-soft);
+  text-decoration: none;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px dashed var(--line);
+  font-size: 0.84rem;
+  opacity: 0.75;
+}
+
 .main-nav a:hover {
   color: var(--text-main);
   border-color: var(--line);
