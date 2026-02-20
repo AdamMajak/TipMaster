@@ -10,20 +10,52 @@
 
     <nav class="main-nav" aria-label="Main navigation">
       <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
-      <a routerLink="/football" routerLinkActive="active">American Football</a>
-      <a routerLink="/soccer" routerLinkActive="active">Soccer</a>
-      <a routerLink="/basketball" routerLinkActive="active">Basketball</a>
-      <a routerLink="/baseball" routerLinkActive="active">Baseball</a>
-      <a routerLink="/hockey" routerLinkActive="active">Ice Hockey</a>
-      <a routerLink="/mma" routerLinkActive="active">MMA</a>
-      <span class="main-nav-muted">Golf</span>
-      <span class="main-nav-muted">Lacrosse</span>
-      <span class="main-nav-muted">Handball</span>
-      <span class="main-nav-muted">AFL</span>
+      <a routerLink="/tennis" routerLinkActive="active">Tennis</a>
+      <a routerLink="/football" routerLinkActive="active">Football</a>
+      <a routerLink="/hockey" routerLinkActive="active">Hockey</a>
     </nav>
   </header>
 
-  <main class="content">
-    <router-outlet></router-outlet>
+  <main class="content-layout">
+    <section class="content">
+      <router-outlet></router-outlet>
+    </section>
+
+    <aside class="betslip">
+      <header class="betslip-header">
+        <h3>Tiket</h3>
+        <span>{{ selectionCount() }} tip{{ selectionCount() === 1 ? '' : 's' }}</span>
+      </header>
+
+      @if (!selectionCount()) {
+        <p class="betslip-empty">Klikni na kurz pri zapase a prida sa sem.</p>
+      } @else {
+        <div class="betslip-items">
+          @for (item of selections(); track item.eventId + '-' + item.market) {
+            <article class="betslip-item">
+              <div>
+                <p class="betslip-sport">{{ item.sport }} • {{ item.market }}</p>
+                <strong>{{ item.homeTeam }} vs {{ item.awayTeam }}</strong>
+                <p class="betslip-time">{{ item.kickoff | date: 'EEE d MMM, HH:mm' }}</p>
+              </div>
+              <div class="betslip-right">
+                <b>{{ item.odds }}</b>
+                <button type="button" (click)="removeSelection(item.eventId, item.market)">×</button>
+              </div>
+            </article>
+          }
+        </div>
+
+        <div class="betslip-footer">
+          <label>
+            Vklad
+            <input type="number" min="1" step="1" [(ngModel)]="stake" />
+          </label>
+          <p>Kurz spolu: <strong>{{ totalOdds() }}</strong></p>
+          <p>Možná výhra: <strong>{{ potentialWin() }}</strong></p>
+          <button type="button" class="clear-btn" (click)="clearTicket()">Vyčistiť tiket</button>
+        </div>
+      }
+    </aside>
   </main>
 </div>

@@ -2,13 +2,13 @@
   <section class="hero-card">
     <div>
       <p class="tag">TIPMASTER LIVE ODDS</p>
-      <h2>RapidAPI Sportsbook feed connected</h2>
+      <h2>Betfair Orbit feed connected</h2>
       <p class="lead">
-        Live betting advantages are loaded from Sportsbook API v0.
+        Live events are loaded from betfair-orbitexch-data via RapidAPI.
       </p>
       <div class="hero-actions">
-        <a routerLink="/football" class="action primary">Open American Football</a>
-        <a routerLink="/soccer" class="action ghost">Open Soccer</a>
+        <a routerLink="/tennis" class="action primary">Open Tennis</a>
+        <a routerLink="/football" class="action ghost">Open Football</a>
       </div>
     </div>
     <div class="stat-grid">
@@ -19,11 +19,9 @@
   </section>
 
   <section class="sport-links">
-    <a routerLink="/football">American Football</a>
-    <a routerLink="/soccer">Soccer</a>
-    <a routerLink="/basketball">Basketball</a>
-    <a routerLink="/baseball">Baseball</a>
-    <a routerLink="/hockey">Ice Hockey</a>
+    <a routerLink="/tennis">Tennis</a>
+    <a routerLink="/football">Football</a>
+    <a routerLink="/hockey">Hockey</a>
   </section>
 
   @if (error) {
@@ -33,11 +31,11 @@
     </section>
   } @else {
     <section class="widget-panel">
-      <h3>Featured Soccer Odds</h3>
+      <h3>Featured Football Events</h3>
       @if (loading) {
         <p class="lead">Loading live odds...</p>
       } @else if (!footballMatches.length) {
-        <p class="lead">No soccer opportunities are available right now.</p>
+        <p class="lead">No football events are available right now.</p>
       } @else {
         <div class="odds-list">
           @for (match of footballMatches; track match.id) {

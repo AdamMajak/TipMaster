@@ -31,7 +31,7 @@ export class Home implements OnInit {
   ngOnInit(): void {
     forkJoin({
       sports: this.oddsService.getSports(),
-      football: this.oddsService.getOddsBySport(SPORT_KEYS.soccer),
+      football: this.oddsService.getOddsBySport(SPORT_KEYS.football),
     }).subscribe({
       next: ({ sports, football }) => {
         this.sportsCount = sports.filter((s) => s.active).length;

@@ -14,14 +14,14 @@ interface SportMatch {
 }
 
 @Component({
-  selector: 'app-football',
+  selector: 'app-tennis',
   imports: [DatePipe],
-  templateUrl: './football.html',
-  styleUrl: './football.css',
+  templateUrl: './tennis.html',
+  styleUrl: './tennis.css',
 })
-export class Football implements OnInit {
-  readonly pageTitle = 'Football Events';
-  readonly subtitle = 'Live football events from Betfair Orbit API.';
+export class Tennis implements OnInit {
+  readonly pageTitle = 'Tennis Events';
+  readonly subtitle = 'Live tennis events from Betfair Orbit API.';
 
   loading = true;
   error = '';
@@ -34,14 +34,14 @@ export class Football implements OnInit {
   ) {}
 
   ngOnInit(): void {
-    this.oddsService.getOddsBySport(SPORT_KEYS.football).subscribe({
+    this.oddsService.getOddsBySport(SPORT_KEYS.tennis).subscribe({
       next: (events) => {
         this.matches = events.slice(0, 16).map((event) => this.toSportMatch(event));
         this.selectedMatch = this.matches[0] ?? null;
         this.loading = false;
       },
       error: (err) => {
-        this.error = err?.message ?? 'Failed to load football events.';
+        this.error = err?.message ?? 'Failed to load tennis events.';
         this.loading = false;
       },
     });
@@ -70,7 +70,7 @@ export class Football implements OnInit {
     event.stopPropagation();
     this.betSlipService.toggleSelection({
       eventId: match.id,
-      sport: 'Football',
+      sport: 'Tennis',
       homeTeam: match.homeTeam,
       awayTeam: match.awayTeam,
       kickoff: match.kickoff,

@@ -2,6 +2,7 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { OddsEvent, OddsService } from '../shared/odds.service';
 import { SPORT_KEYS } from '../shared/rapidapi-odds';
+import { BetSlipService } from '../shared/betslip.service';
 
 interface SportMatch {
   id: string;
@@ -19,15 +20,18 @@ interface SportMatch {
   styleUrl: './hockey.css',
 })
 export class Hockey implements OnInit {
-  readonly pageTitle = 'Hockey Odds';
-  readonly subtitle = 'NHL odds from RapidAPI.';
+  readonly pageTitle = 'Hockey Events';
+  readonly subtitle = 'Live hockey events from Betfair Orbit API.';
 
   loading = true;
   error = '';
   matches: SportMatch[] = [];
   selectedMatch: SportMatch | null = null;
 
-  constructor(private readonly oddsService: OddsService) {}
+  constructor(
+    private readonly oddsService: OddsService,
+    private readonly betSlipService: BetSlipService
+  ) {}
 
   ngOnInit(): void {
     this.oddsService.getOddsBySport(SPORT_KEYS.hockey).subscribe({
@@ -37,7 +41,7 @@ export class Hockey implements OnInit {
         this.loading = false;
       },
       error: (err) => {
-        this.error = err?.message ?? 'Failed to load hockey odds.';
+        this.error = err?.message ?? 'Failed to load hockey events.';
         this.loading = false;
       },
     });
@@ -60,5 +64,22 @@ export class Hockey implements OnInit {
 
   selectMatch(match: SportMatch): void {
     this.selectedMatch = match;
+  }
+
+  addToSlip(event: MouseEvent, match: SportMatch, odd: { name: string; price: number }): void {
+    event.stopPropagation();
+    this.betSlipService.toggleSelection({
+      eventId: match.id,
+      sport: 'Hockey',
+      homeTeam: match.homeTeam,
+      awayTeam: match.awayTeam,
+      kickoff: match.kickoff,
+      market: odd.name,
+      odds: odd.price,
+    });
+  }
+
+  isSelected(match: SportMatch, odd: { name: string; price: number }): boolean {
+    return this.betSlipService.isSelected(match.id, odd.name);
   }
 }

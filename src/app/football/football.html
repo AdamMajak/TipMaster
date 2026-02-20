@@ -1,7 +1,7 @@
 <section class="sport-page">
   <header class="sport-hero">
     <div>
-      <p class="sport-tag">AMERICAN FOOTBALL</p>
+      <p class="sport-tag">FOOTBALL</p>
       <h2>{{ pageTitle }}</h2>
       <p>{{ subtitle }}</p>
     </div>
@@ -12,14 +12,13 @@
     @if (error) {
       <p class="meta">{{ error }}</p>
     } @else if (loading) {
-      <p class="meta">Loading american football odds...</p>
+      <p class="meta">Loading football events...</p>
     } @else if (!matches.length) {
-      <p class="meta">No american football opportunities are available right now.</p>
+      <p class="meta">No football events are available right now.</p>
     } @else {
       <div class="odds-grid">
         @for (match of matches; track match.id) {
-          <button
-            type="button"
+          <article
             class="odds-card"
             [class.active]="selectedMatch?.id === match.id"
             (click)="selectMatch(match)">
@@ -31,10 +30,17 @@
             <p class="meta">{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} | {{ match.bookmaker }}</p>
             <div class="prices">
               @for (odd of match.odds; track odd.name) {
-                <span>{{ odd.name }} <b>{{ odd.price }}</b></span>
+                <button
+                  type="button"
+                  class="price-btn"
+                  [class.selected]="isSelected(match, odd)"
+                  (click)="addToSlip($event, match, odd)">
+                  <span>{{ odd.name }}</span>
+                  <b>{{ odd.price }}</b>
+                </button>
               }
             </div>
-          </button>
+          </article>
         }
       </div>
 
@@ -46,10 +52,14 @@
           </p>
           <div class="detail-prices">
             @for (odd of selectedMatch.odds; track odd.name) {
-              <div>
+              <button
+                type="button"
+                class="price-btn detail-btn"
+                [class.selected]="isSelected(selectedMatch, odd)"
+                (click)="addToSlip($event, selectedMatch, odd)">
                 <span>{{ odd.name }}</span>
                 <strong>{{ odd.price }}</strong>
-              </div>
+              </button>
             }
           </div>
         </article>
