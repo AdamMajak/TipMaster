@@ -206,6 +206,16 @@
   padding: 8px;
 }
 
+.bet-btn {
+  border: 1px solid #f5b25c;
+  background: linear-gradient(120deg, #f09a2b, #f6c26b);
+  color: #1a1f2a;
+  border-radius: 10px;
+  padding: 10px 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .clear-btn {
   border: 1px solid #4a6fa5;
   background: #1c2e4c;
@@ -213,6 +223,68 @@
   border-radius: 10px;
   padding: 9px 12px;
   cursor: pointer;
+}
+
+.betslip-history {
+  margin-top: 14px;
+  border-top: 1px solid #2b4368;
+  padding-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.betslip-history header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.betslip-history h4 {
+  margin: 0;
+  font-size: 0.95rem;
+}
+
+.ghost-btn {
+  border: 1px solid #3f5f8b;
+  background: transparent;
+  color: #dce9ff;
+  border-radius: 999px;
+  padding: 6px 12px;
+  cursor: pointer;
+}
+
+.history-list {
+  display: grid;
+  gap: 8px;
+}
+
+.history-card {
+  border: 1px solid #314a72;
+  background: #14253f;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 6px;
+}
+
+.history-top {
+  display: flex;
+  justify-content: space-between;
+  color: #e9f0ff;
+  font-size: 0.82rem;
+}
+
+.history-meta {
+  margin: 0;
+  color: #b7c8e6;
+  font-size: 0.8rem;
+}
+
+.history-picks {
+  display: grid;
+  gap: 4px;
+  color: #9fb5d8;
+  font-size: 0.76rem;
 }
 
 @media (max-width: 860px) {

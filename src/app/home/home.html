@@ -57,4 +57,133 @@
       }
     </section>
   }
+
+  <section class="widget-panel analysis-panel">
+    <header class="analysis-header">
+      <div>
+        <h3>Today analyses</h3>
+        <p class="lead">Date: {{ todayDate | date: 'EEE d MMM' }}</p>
+      </div>
+      <span class="pill">Auto</span>
+    </header>
+
+    @if (loading) {
+      <p class="lead">Loading today's matches...</p>
+    } @else if (!todayMatches.length) {
+      <p class="lead">No matches are listed for today.</p>
+    } @else {
+      <div class="analysis-grid">
+        @for (item of autoAnalyses; track item.id) {
+          <article class="analysis-card">
+            <div class="analysis-top">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.kickoff | date: 'EEE d MMM, HH:mm' }}</span>
+            </div>
+            <p class="analysis-meta">{{ item.matchLabel }}</p>
+            <p class="analysis-text">{{ item.summary }}</p>
+            <div class="analysis-footer">
+              <span>Tip: <b>{{ item.pick || '-' }}</b></span>
+              <span>Confidence: <b>{{ item.confidence || '-' }}/5</b></span>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="widget-panel analysis-panel">
+    <header class="analysis-header">
+      <div>
+        <h3>My analyses</h3>
+        <p class="lead">Add your own note for a match or a league day.</p>
+      </div>
+      <span class="pill">My</span>
+    </header>
+
+    <form class="analysis-form" (ngSubmit)="addAnalysis()">
+      <label>
+        Analysis date
+        <input type="date" name="analysisDate" [(ngModel)]="analysisDate" />
+      </label>
+
+      <label>
+        Today's matches
+        <select [(ngModel)]="analysisMatchId" name="analysisMatchId">
+          <option value="">Select a match (optional)</option>
+          @for (match of todayMatches; track match.id) {
+            <option [value]="match.id">{{ match.homeTeam }} vs {{ match.awayTeam }}</option>
+          }
+        </select>
+      </label>
+
+      <label>
+        Custom match
+        <input
+          type="text"
+          name="analysisMatchLabel"
+          [(ngModel)]="analysisMatchLabel"
+          placeholder="For example Team A vs Team B"
+        />
+      </label>
+
+      <label>
+        Title
+        <input type="text" name="analysisTitle" [(ngModel)]="analysisTitle" placeholder="Short analysis title" />
+      </label>
+
+      <label>
+        Analysis
+        <textarea
+          rows="4"
+          name="analysisSummary"
+          [(ngModel)]="analysisSummary"
+          placeholder="Write your analysis, form, trend, or value angle."
+        ></textarea>
+      </label>
+
+      <div class="form-row">
+        <label>
+          Pick
+          <input type="text" name="analysisPick" [(ngModel)]="analysisPick" placeholder="1 / X / 2 or special" />
+        </label>
+        <label>
+          Confidence (1-5)
+          <input
+            type="number"
+            min="1"
+            max="5"
+            step="1"
+            name="analysisConfidence"
+            [(ngModel)]="analysisConfidence"
+          />
+        </label>
+      </div>
+
+      <button type="submit" class="action primary">Add analysis</button>
+    </form>
+
+    @if (!filteredUserAnalyses().length) {
+      <p class="lead">You do not have any analyses yet.</p>
+    } @else {
+      <div class="analysis-grid">
+        @for (item of filteredUserAnalyses(); track item.id) {
+          <article class="analysis-card user">
+            <div class="analysis-top">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.kickoff ? (item.kickoff | date: 'EEE d MMM, HH:mm') : (item.createdAt | date: 'EEE d MMM, HH:mm') }}</span>
+            </div>
+            <p class="analysis-meta">{{ item.matchLabel }}</p>
+            <p class="analysis-text">{{ item.summary }}</p>
+            <div class="analysis-footer">
+              <span>Tip: <b>{{ item.pick || '-' }}</b></span>
+              <span>Confidence: <b>{{ item.confidence || '-' }}/5</b></span>
+              <button type="button" class="ghost-btn" (click)="removeAnalysis(item.id)">Delete</button>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+
 </section>

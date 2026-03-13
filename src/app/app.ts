@@ -18,6 +18,7 @@ export class App {
 
   protected readonly selections = this.betSlipService.entries;
   protected readonly selectionCount = this.betSlipService.count;
+  protected readonly tickets = this.betSlipService.tickets;
   protected readonly totalOdds = computed(() => {
     const count = this.betSlipService.count();
     return count ? this.betSlipService.totalOdds().toFixed(2) : '0.00';
@@ -29,6 +30,14 @@ export class App {
 
   protected clearTicket(): void {
     this.betSlipService.clear();
+  }
+
+  protected placeBet(): void {
+    this.betSlipService.placeBet(this.stake);
+  }
+
+  protected clearHistory(): void {
+    this.betSlipService.clearTickets();
   }
 
   protected potentialWin(): string {

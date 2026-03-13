@@ -10,11 +10,23 @@ export interface BetSelection {
   odds: number;
 }
 
+export interface BetTicket {
+  id: string;
+  placedAt: string;
+  stake: number;
+  totalOdds: number;
+  potentialWin: number;
+  selections: BetSelection[];
+}
+
 @Injectable({ providedIn: 'root' })
 export class BetSlipService {
+  private readonly storageKey = 'tipmaster-bets';
   private readonly entriesSignal = signal<BetSelection[]>([]);
+  private readonly ticketsSignal = signal<BetTicket[]>(this.loadTickets());
 
   readonly entries = this.entriesSignal.asReadonly();
+  readonly tickets = this.ticketsSignal.asReadonly();
   readonly count = computed(() => this.entriesSignal().length);
   readonly totalOdds = computed(() =>
     this.entriesSignal().reduce((acc, entry) => acc * entry.odds, 1)
@@ -50,5 +62,53 @@ export class BetSlipService {
 
   isSelected(eventId: string, market: string): boolean {
     return this.entriesSignal().some((item) => item.eventId === eventId && item.market === market);
+  }
+
+  placeBet(stake: number): BetTicket | null {
+    const selections = this.entriesSignal();
+    if (!selections.length) {
+      return null;
+    }
+
+    const totalOdds = this.totalOdds();
+    const ticket: BetTicket = {
+      id: `ticket-${Date.now()}`,
+      placedAt: new Date().toISOString(),
+      stake,
+      totalOdds,
+      potentialWin: totalOdds * stake,
+      selections,
+    };
+
+    const next = [ticket, ...this.ticketsSignal()];
+    this.ticketsSignal.set(next);
+    this.saveTickets(next);
+    this.clear();
+    return ticket;
+  }
+
+  clearTickets(): void {
+    this.ticketsSignal.set([]);
+    this.saveTickets([]);
+  }
+
+  private loadTickets(): BetTicket[] {
+    if (typeof localStorage === 'undefined') {
+      return [];
+    }
+    try {
+      const raw = localStorage.getItem(this.storageKey);
+      const parsed = raw ? (JSON.parse(raw) as BetTicket[]) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private saveTickets(items: BetTicket[]): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.setItem(this.storageKey, JSON.stringify(items));
   }
 }
