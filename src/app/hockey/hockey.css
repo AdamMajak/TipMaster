@@ -54,55 +54,153 @@
   padding: 12px;
 }
 
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.section-title {
+  margin: 0;
+  color: #f3f7ff;
+  font-size: 1.05rem;
+}
+
+.section-chip {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #1c3356;
+  color: #bdd3f5;
+  border: 1px solid #2d4a78;
+}
+
 .meta {
   margin: 0;
   color: #98afd5;
   font-size: 0.86rem;
 }
 
-.odds-grid {
+.score-grid,
+.news-grid,
+.team-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 10px;
 }
 
-.odds-card {
+.score-card,
+.news-card,
+.team-card,
+.team-detail {
   border: 1px solid #314a72;
   background: #16243c;
   border-radius: 10px;
   padding: 10px;
   text-align: left;
-  cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  touch-action: manipulation;
   color: inherit;
 }
 
-.odds-card:hover {
+.score-card {
+  display: grid;
+  gap: 10px;
+}
+
+.score-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.status-pill {
+  background: #203a63;
+  color: #e6f0ff;
+  border: 1px solid #345682;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.score-teams {
+  display: grid;
+  gap: 6px;
+}
+
+.team-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: #f2f6ff;
+}
+
+.team-score {
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+
+.news-card {
+  display: grid;
+  gap: 10px;
+}
+
+.news-card img {
+  width: 100%;
+  border-radius: 8px;
+  border: 1px solid #2c456e;
+  object-fit: cover;
+}
+
+.news-card h4 {
+  margin: 0 0 6px;
+  color: #f1f6ff;
+}
+
+.team-grid {
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.team-card {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  align-items: center;
+  gap: 12px;
+  background: #152238;
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  touch-action: manipulation;
+}
+
+.team-card img {
+  width: 48px;
+  height: 48px;
+  object-fit: contain;
+}
+
+.team-card:hover {
   border-color: #4b73ab;
   transform: translateY(-1px);
 }
 
-.odds-card.active {
+.team-card.active {
   border-color: #ffb14a;
   box-shadow: 0 0 0 1px rgba(255, 177, 74, 0.3);
 }
 
-.teams {
-  display: flex;
-  gap: 8px;
-  align-items: center;
+.team-card strong {
   color: #f2f6ff;
+  display: block;
+  margin-bottom: 4px;
 }
 
-.prices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
-}
-
-.detail-card {
+.team-detail {
   margin-top: 14px;
   border: 1px solid #456892;
   background: linear-gradient(145deg, #192b47, #121f34);
@@ -110,59 +208,37 @@
   padding: 14px;
 }
 
-.detail-card h3 {
-  margin: 0 0 8px;
+.team-detail-head {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+}
+
+.team-detail-head img {
+  width: 54px;
+  height: 54px;
+  object-fit: contain;
+}
+
+.team-detail h4 {
+  margin: 0 0 6px;
   color: #eff5ff;
 }
 
-.detail-prices {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 8px;
+.team-detail-grid {
   margin-top: 10px;
-}
-
-.price-btn {
-  border-radius: 10px;
-  border: 1px solid #3f5f8b;
-  background: #203252;
-  color: #dce9ff;
-  min-width: 78px;
-  padding: 6px 8px;
   display: grid;
-  gap: 3px;
-  text-align: center;
-  cursor: pointer;
-  transition: 0.2s ease;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 10px;
+  color: #f3f7ff;
 }
 
-.price-btn span {
+.label {
   display: block;
-  font-size: 0.75rem;
-  color: #a8bddf;
-}
-
-.price-btn b,
-.price-btn strong {
-  margin: 0;
-  color: #ffcb88;
-  font-size: 0.95rem;
-}
-
-.price-btn:hover {
-  border-color: #6f97cd;
-  transform: translateY(-1px);
-}
-
-.price-btn.selected {
-  border-color: #ffb14a;
-  background: #2a3c5f;
-  box-shadow: 0 0 0 1px rgba(255, 177, 74, 0.25);
-}
-
-.detail-btn {
-  width: 100%;
-  padding: 10px;
+  font-size: 0.72rem;
+  color: #9db6db;
+  letter-spacing: 0.05em;
+  text-transform: uppercase;
 }
 
 @media (max-width: 800px) {

@@ -5,65 +5,160 @@
       <h2>{{ pageTitle }}</h2>
       <p>{{ subtitle }}</p>
     </div>
-    <span class="sport-status">Live feed</span>
+    <span class="sport-status">ESPN soccer feed</span>
   </header>
 
   <section class="widget-block">
-    @if (error) {
-      <p class="meta">{{ error }}</p>
-    } @else if (loading) {
-      <p class="meta">Loading football events...</p>
-    } @else if (!matches.length) {
-      <p class="meta">No football events are available right now.</p>
+    <div class="section-head">
+      <div>
+        <h3 class="section-title">League</h3>
+        <p class="meta">Vyber ligu pre scoreboard, news a teams.</p>
+      </div>
+      <div class="league-select">
+        <select [(ngModel)]="selectedLeague" (change)="onLeagueChange()">
+          @for (league of leagues; track league.id) {
+            <option [value]="league.id">{{ league.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </section>
+
+  <section class="widget-block">
+    <div class="section-head">
+      <h3 class="section-title">Scores</h3>
+      <span class="section-chip">Scoreboard</span>
+    </div>
+
+    @if (errorScores) {
+      <p class="meta">{{ errorScores }}</p>
+    } @else if (loadingScores) {
+      <p class="meta">Loading league scores...</p>
+    } @else if (!games.length) {
+      <p class="meta">No matches are available right now.</p>
     } @else {
-      <div class="odds-grid">
-        @for (match of matches; track match.id) {
-          <article
-            class="odds-card"
-            [class.active]="selectedMatch?.id === match.id"
-            (click)="selectMatch(match)">
-            <div class="teams">
-              <strong>{{ match.homeTeam }}</strong>
-              <span>vs</span>
-              <strong>{{ match.awayTeam }}</strong>
+      <div class="score-grid">
+        @for (game of games; track game.id) {
+          <article class="score-card">
+            <div class="score-head">
+              <span class="status-pill">{{ game.status }}</span>
+              <span class="meta">{{ game.detail }}</span>
             </div>
-            <p class="meta">{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} | {{ match.bookmaker }}</p>
-            <div class="prices">
-              @for (odd of match.odds; track odd.name) {
-                <button
-                  type="button"
-                  class="price-btn"
-                  [class.selected]="isSelected(match, odd)"
-                  (click)="addToSlip($event, match, odd)">
-                  <span>{{ odd.name }}</span>
-                  <b>{{ odd.price }}</b>
-                </button>
-              }
+            <div class="score-teams">
+              <div class="team-row">
+                <span class="team-name">{{ game.awayTeam }}</span>
+                <span class="team-score">{{ game.awayScore ?? '-' }}</span>
+              </div>
+              <div class="team-row">
+                <span class="team-name">{{ game.homeTeam }}</span>
+                <span class="team-score">{{ game.homeScore ?? '-' }}</span>
+              </div>
+            </div>
+            <p class="meta">{{ game.date | date: 'EEE d MMM, HH:mm' }}</p>
+            @if (game.venue) {
+              <p class="meta">Venue: {{ game.venue }}</p>
+            }
+          </article>
+        }
+      </div>
+    }
+  </section>
+
+  <section class="widget-block">
+    <div class="section-head">
+      <h3 class="section-title">News</h3>
+      <span class="section-chip">Latest headlines</span>
+    </div>
+
+    @if (errorNews) {
+      <p class="meta">{{ errorNews }}</p>
+    } @else if (loadingNews) {
+      <p class="meta">Loading league news...</p>
+    } @else if (!news.length) {
+      <p class="meta">No league news available.</p>
+    } @else {
+      <div class="news-grid">
+        @for (item of news; track item.id) {
+          <article class="news-card">
+            @if (item.image) {
+              <img [src]="item.image" [alt]="item.headline" loading="lazy" />
+            }
+            <div class="news-body">
+              <h4>{{ item.headline }}</h4>
+              <p class="meta">{{ item.description }}</p>
+              <p class="meta">{{ item.published | date: 'EEE d MMM, HH:mm' }}</p>
             </div>
           </article>
         }
       </div>
+    }
+  </section>
 
-      @if (selectedMatch) {
-        <article class="detail-card">
-          <h3>{{ selectedMatch.homeTeam }} vs {{ selectedMatch.awayTeam }}</h3>
-          <p class="meta">
-            Kickoff: {{ selectedMatch.kickoff | date: 'EEEE, d MMMM y, HH:mm' }} | Bookmaker: {{ selectedMatch.bookmaker }}
-          </p>
-          <div class="detail-prices">
-            @for (odd of selectedMatch.odds; track odd.name) {
-              <button
-                type="button"
-                class="price-btn detail-btn"
-                [class.selected]="isSelected(selectedMatch, odd)"
-                (click)="addToSlip($event, selectedMatch, odd)">
-                <span>{{ odd.name }}</span>
-                <strong>{{ odd.price }}</strong>
-              </button>
+  <section class="widget-block">
+    <div class="section-head">
+      <h3 class="section-title">Teams</h3>
+      <span class="section-chip">League teams</span>
+    </div>
+
+    @if (errorTeams) {
+      <p class="meta">{{ errorTeams }}</p>
+    } @else if (loadingTeams) {
+      <p class="meta">Loading league teams...</p>
+    } @else if (!teams.length) {
+      <p class="meta">No teams available.</p>
+    } @else {
+      <div class="team-grid">
+        @for (team of teams; track team.id) {
+          <button
+            type="button"
+            class="team-card"
+            [class.active]="selectedTeam?.id === team.id"
+            (click)="selectTeam(team)">
+            @if (team.logo) {
+              <img [src]="team.logo" [alt]="team.name" loading="lazy" />
             }
+            <div>
+              <strong>{{ team.name }}</strong>
+              <span class="meta">{{ team.abbreviation }}</span>
+            </div>
+          </button>
+        }
+      </div>
+    }
+
+    @if (selectedTeam) {
+      <article class="team-detail">
+        <div class="team-detail-head">
+          @if (teamDetail?.logo) {
+            <img [src]="teamDetail?.logo" [alt]="selectedTeam?.name" loading="lazy" />
+          }
+          <div>
+            <h4>{{ teamDetail?.name ?? selectedTeam?.name }}</h4>
+            <p class="meta">{{ teamDetail?.location }} | {{ teamDetail?.abbreviation }}</p>
           </div>
-        </article>
-      }
+        </div>
+
+        @if (errorTeam) {
+          <p class="meta">{{ errorTeam }}</p>
+        } @else if (loadingTeam) {
+          <p class="meta">Loading team details...</p>
+        } @else {
+          <div class="team-detail-grid">
+            <div>
+              <span class="label">Record</span>
+              <strong>{{ teamDetail?.record ?? 'N/A' }}</strong>
+            </div>
+            <div>
+              <span class="label">Venue</span>
+              <strong>{{ teamDetail?.venue ?? 'N/A' }}</strong>
+            </div>
+            <div>
+              <span class="label">Colors</span>
+              <strong>{{ teamDetail?.color ?? 'N/A' }}{{ teamDetail?.alternateColor ? ' / ' + teamDetail?.alternateColor : '' }}</strong>
+            </div>
+          </div>
+        }
+      </article>
     }
   </section>
 </section>

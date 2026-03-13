@@ -1,17 +1,12 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { OddsEvent, OddsService } from '../shared/odds.service';
-import { SPORT_KEYS } from '../shared/rapidapi-odds';
-import { BetSlipService } from '../shared/betslip.service';
-
-interface SportMatch {
-  id: string;
-  kickoff: string;
-  homeTeam: string;
-  awayTeam: string;
-  bookmaker: string;
-  odds: Array<{ name: string; price: number }>;
-}
+import {
+  EspnHockeyService,
+  HockeyGame,
+  HockeyNewsItem,
+  HockeyTeam,
+  HockeyTeamDetail,
+} from '../shared/espn-hockey.service';
 
 @Component({
   selector: 'app-hockey',
@@ -21,65 +16,85 @@ interface SportMatch {
 })
 export class Hockey implements OnInit {
   readonly pageTitle = 'Hockey Events';
-  readonly subtitle = 'Live hockey events from Betfair Orbit API.';
+  readonly subtitle = 'Live NHL scores, news, and team data from ESPN APIs.';
 
-  loading = true;
-  error = '';
-  matches: SportMatch[] = [];
-  selectedMatch: SportMatch | null = null;
+  loadingScores = true;
+  loadingNews = true;
+  loadingTeams = true;
+  loadingTeam = false;
 
-  constructor(
-    private readonly oddsService: OddsService,
-    private readonly betSlipService: BetSlipService
-  ) {}
+  errorScores = '';
+  errorNews = '';
+  errorTeams = '';
+  errorTeam = '';
+
+  games: HockeyGame[] = [];
+  news: HockeyNewsItem[] = [];
+  teams: HockeyTeam[] = [];
+  selectedTeam: HockeyTeam | null = null;
+  teamDetail: HockeyTeamDetail | null = null;
+
+  constructor(private readonly hockeyService: EspnHockeyService) {}
 
   ngOnInit(): void {
-    this.oddsService.getOddsBySport(SPORT_KEYS.hockey).subscribe({
-      next: (events) => {
-        this.matches = events.slice(0, 16).map((event) => this.toSportMatch(event));
-        this.selectedMatch = this.matches[0] ?? null;
-        this.loading = false;
+    this.hockeyService.getScoreboard().subscribe({
+      next: (games) => {
+        this.games = games;
+        this.loadingScores = false;
       },
       error: (err) => {
-        this.error = err?.message ?? 'Failed to load hockey events.';
-        this.loading = false;
+        this.errorScores = err?.message ?? 'Failed to load NHL scores.';
+        this.loadingScores = false;
+      },
+    });
+
+    this.hockeyService.getNews().subscribe({
+      next: (news) => {
+        this.news = news;
+        this.loadingNews = false;
+      },
+      error: (err) => {
+        this.errorNews = err?.message ?? 'Failed to load NHL news.';
+        this.loadingNews = false;
+      },
+    });
+
+    this.hockeyService.getTeams().subscribe({
+      next: (teams) => {
+        this.teams = teams;
+        this.loadingTeams = false;
+        this.selectTeam(teams[0] ?? null);
+      },
+      error: (err) => {
+        this.errorTeams = err?.message ?? 'Failed to load NHL teams.';
+        this.loadingTeams = false;
       },
     });
   }
 
-  private toSportMatch(event: OddsEvent): SportMatch {
-    const fallbackBookmaker = { title: 'N/A', markets: [{ outcomes: [] as Array<{ name: string; price: number }> }] };
-    const bookmaker = event.bookmakers?.find((b) => b.markets?.some((m) => m.key === 'h2h')) ?? event.bookmakers?.[0] ?? fallbackBookmaker;
-    const h2h = bookmaker.markets?.find((m) => m.key === 'h2h') ?? bookmaker.markets?.[0];
+  selectTeam(team: HockeyTeam | null): void {
+    if (!team) {
+      this.selectedTeam = null;
+      this.teamDetail = null;
+      return;
+    }
 
-    return {
-      id: event.id,
-      kickoff: event.commence_time,
-      homeTeam: event.home_team,
-      awayTeam: event.away_team,
-      bookmaker: bookmaker.title,
-      odds: (h2h?.outcomes ?? []).slice(0, 3),
-    };
+    this.selectedTeam = team;
+    this.loadTeamDetail(team.id);
   }
 
-  selectMatch(match: SportMatch): void {
-    this.selectedMatch = match;
-  }
-
-  addToSlip(event: MouseEvent, match: SportMatch, odd: { name: string; price: number }): void {
-    event.stopPropagation();
-    this.betSlipService.toggleSelection({
-      eventId: match.id,
-      sport: 'Hockey',
-      homeTeam: match.homeTeam,
-      awayTeam: match.awayTeam,
-      kickoff: match.kickoff,
-      market: odd.name,
-      odds: odd.price,
+  private loadTeamDetail(teamId: string): void {
+    this.loadingTeam = true;
+    this.errorTeam = '';
+    this.hockeyService.getTeam(teamId).subscribe({
+      next: (detail) => {
+        this.teamDetail = detail;
+        this.loadingTeam = false;
+      },
+      error: (err) => {
+        this.errorTeam = err?.message ?? 'Failed to load team details.';
+        this.loadingTeam = false;
+      },
     });
-  }
-
-  isSelected(match: SportMatch, odd: { name: string; price: number }): boolean {
-    return this.betSlipService.isSelected(match.id, odd.name);
   }
 }
