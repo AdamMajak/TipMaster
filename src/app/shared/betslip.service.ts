@@ -47,7 +47,8 @@ export class BetSlipService {
       return;
     }
 
-    this.entriesSignal.set([...current, selection]);
+    const withoutSameEvent = current.filter((item) => item.eventId !== selection.eventId);
+    this.entriesSignal.set([...withoutSameEvent, selection]);
   }
 
   removeSelection(eventId: string, market: string): void {
