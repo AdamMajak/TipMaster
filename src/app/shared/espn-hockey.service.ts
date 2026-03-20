@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { map, Observable } from 'rxjs';
+import { forkJoin, map, Observable } from 'rxjs';
 
 export interface HockeyGame {
   id: string;
@@ -50,8 +50,15 @@ export class EspnHockeyService {
   constructor(private readonly http: HttpClient) {}
 
   getScoreboard(): Observable<HockeyGame[]> {
-    return this.http.get<any>(`${ESPN_NHL_BASE_URL}/scoreboard`).pipe(
-      map((data) => this.mapScoreboard(data))
+    const dates = this.buildScoreboardDates();
+    const requests = dates.map((date) =>
+      this.http.get<any>(`${ESPN_NHL_BASE_URL}/scoreboard?dates=${date}`)
+    );
+
+    return forkJoin(requests).pipe(
+      map((responses) => responses.flatMap((data) => this.mapScoreboard(data))),
+      map((games) => this.deduplicateGames(games)),
+      map((games) => this.sortGames(games))
     );
   }
 
@@ -97,6 +104,65 @@ export class EspnHockeyService {
         venue,
       };
     });
+  }
+
+  private buildScoreboardDates(): string[] {
+    const yesterday = new Date();
+    yesterday.setDate(yesterday.getDate() - 1);
+
+    const today = new Date();
+    const tomorrow = new Date(today);
+    tomorrow.setDate(today.getDate() + 1);
+
+    return [yesterday, today, tomorrow].map((date) => this.toEspnDate(date));
+  }
+
+  private toEspnDate(date: Date): string {
+    const year = date.getFullYear();
+    const month = `${date.getMonth() + 1}`.padStart(2, '0');
+    const day = `${date.getDate()}`.padStart(2, '0');
+    return `${year}${month}${day}`;
+  }
+
+  private deduplicateGames(games: HockeyGame[]): HockeyGame[] {
+    const unique = new Map<string, HockeyGame>();
+
+    for (const game of games) {
+      unique.set(game.id, game);
+    }
+
+    return Array.from(unique.values());
+  }
+
+  private sortGames(games: HockeyGame[]): HockeyGame[] {
+    return [...games].sort((a, b) => {
+      const aPriority = this.getStatusPriority(a.status);
+      const bPriority = this.getStatusPriority(b.status);
+
+      if (aPriority !== bPriority) {
+        return aPriority - bPriority;
+      }
+
+      return new Date(a.date).getTime() - new Date(b.date).getTime();
+    });
+  }
+
+  private getStatusPriority(status: string): number {
+    const normalized = status.toLowerCase();
+
+    if (normalized.includes('in') || normalized.includes('live') || normalized.includes('progress')) {
+      return 0;
+    }
+
+    if (normalized.includes('pre') || normalized.includes('scheduled')) {
+      return 1;
+    }
+
+    if (normalized.includes('post') || normalized.includes('final')) {
+      return 2;
+    }
+
+    return 1;
   }
 
   private mapNews(data: any): HockeyNewsItem[] {

@@ -24,141 +24,281 @@
     </div>
   </section>
 
-  <section class="widget-block">
-    <div class="section-head">
-      <h3 class="section-title">Scores</h3>
-      <span class="section-chip">Scoreboard</span>
-    </div>
-
-    @if (errorScores) {
-      <p class="meta">{{ errorScores }}</p>
-    } @else if (loadingScores) {
-      <p class="meta">Loading league scores...</p>
-    } @else if (!games.length) {
-      <p class="meta">No matches are available right now.</p>
-    } @else {
-      <div class="score-grid">
-        @for (game of games; track game.id) {
-          <article class="score-card">
-            <div class="score-head">
-              <span class="status-pill">{{ game.status }}</span>
-              <span class="meta">{{ game.detail }}</span>
-            </div>
-            <div class="score-teams">
-              <div class="team-row">
-                <span class="team-name">{{ game.awayTeam }}</span>
-                <span class="team-score">{{ game.awayScore ?? '-' }}</span>
-              </div>
-              <div class="team-row">
-                <span class="team-name">{{ game.homeTeam }}</span>
-                <span class="team-score">{{ game.homeScore ?? '-' }}</span>
-              </div>
-            </div>
-            <p class="meta">{{ game.date | date: 'EEE d MMM, HH:mm' }}</p>
-            @if (game.venue) {
-              <p class="meta">Venue: {{ game.venue }}</p>
-            }
-          </article>
-        }
+  <details class="widget-block collapsible" open>
+    <summary class="collapse-head">
+      <div>
+        <h3 class="section-title">Scoreboard</h3>
+        <p class="meta">Cas je zobrazovany v slovenskom pasme (CET/CEST).</p>
       </div>
-    }
-  </section>
+      <span class="section-chip">Matches</span>
+    </summary>
 
-  <section class="widget-block">
-    <div class="section-head">
+    <div class="collapse-body">
+      @if (errorScores) {
+        <p class="meta">{{ errorScores }}</p>
+      } @else if (loadingScores) {
+        <p class="meta">Loading league scores...</p>
+      } @else if (!games.length) {
+        <p class="meta">No matches are available right now.</p>
+      } @else {
+        <details class="score-section collapsible" open>
+          <summary class="collapse-head compact">
+            <h4 class="subsection-title">Program</h4>
+            <span class="section-chip">{{ scheduledGames.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            @if (!scheduledGames.length) {
+              <p class="meta">No upcoming matches in the selected range.</p>
+            } @else {
+              <div class="score-grid">
+                @for (game of scheduledGames; track game.id) {
+                  <article class="score-card">
+                    <div class="score-head">
+                      <span class="status-pill">{{ game.status }}</span>
+                      <span class="meta">{{ game.detail }}</span>
+                    </div>
+                    <div class="score-teams">
+                      <div class="team-row">
+                        <span class="team-name">{{ game.awayTeam }}</span>
+                        <span class="team-score">{{ game.awayScore ?? '-' }}</span>
+                      </div>
+                      <div class="team-row">
+                        <span class="team-name">{{ game.homeTeam }}</span>
+                        <span class="team-score">{{ game.homeScore ?? '-' }}</span>
+                      </div>
+                    </div>
+                    <p class="meta">{{ game.date | date: 'EEE d MMM' : slovakTimezone }} | {{ game.date | date: 'HH:mm' : slovakTimezone }} SK</p>
+                    @if (game.venue) {
+                      <p class="meta">Venue: {{ game.venue }}</p>
+                    }
+                  </article>
+                }
+              </div>
+            }
+          </div>
+        </details>
+
+        <details class="score-section collapsible" open>
+          <summary class="collapse-head compact">
+            <h4 class="subsection-title">Live</h4>
+            <span class="section-chip">{{ liveGames.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            @if (!liveGames.length) {
+              <p class="meta">No live matches right now.</p>
+            } @else {
+              <div class="score-grid">
+                @for (game of liveGames; track game.id) {
+                  <article class="score-card">
+                    <div class="score-head">
+                      <span class="status-pill">{{ game.status }}</span>
+                      <span class="meta">{{ game.detail }}</span>
+                    </div>
+                    <div class="score-teams">
+                      <div class="team-row">
+                        <span class="team-name">{{ game.awayTeam }}</span>
+                        <span class="team-score">{{ game.awayScore ?? '-' }}</span>
+                      </div>
+                      <div class="team-row">
+                        <span class="team-name">{{ game.homeTeam }}</span>
+                        <span class="team-score">{{ game.homeScore ?? '-' }}</span>
+                      </div>
+                    </div>
+                    <p class="meta">{{ game.date | date: 'EEE d MMM' : slovakTimezone }} | {{ game.date | date: 'HH:mm' : slovakTimezone }} SK</p>
+                    @if (game.venue) {
+                      <p class="meta">Venue: {{ game.venue }}</p>
+                    }
+                  </article>
+                }
+              </div>
+            }
+          </div>
+        </details>
+
+        <details class="score-section collapsible">
+          <summary class="collapse-head compact">
+            <h4 class="subsection-title">Results</h4>
+            <span class="section-chip">{{ finishedGames.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            @if (!finishedGames.length) {
+              <p class="meta">No finished matches in the selected range.</p>
+            } @else {
+              <div class="result-highlight">
+                <div class="section-head compact">
+                  <div>
+                    <h5 class="subsection-title">Last Matchday</h5>
+                    <p class="meta">Posledny odohrany hraci den.</p>
+                  </div>
+                  <span class="section-chip">{{ latestMatchdayGames.length }}</span>
+                </div>
+
+                <div class="score-grid">
+                  @for (game of latestMatchdayGames; track game.id) {
+                    <article class="score-card">
+                      <div class="score-head">
+                        <span class="status-pill">{{ game.status }}</span>
+                        <span class="meta">{{ game.detail }}</span>
+                      </div>
+                      <div class="score-teams">
+                        <div class="team-row">
+                          <span class="team-name">{{ game.awayTeam }}</span>
+                          <span class="team-score">{{ game.awayScore ?? '-' }}</span>
+                        </div>
+                        <div class="team-row">
+                          <span class="team-name">{{ game.homeTeam }}</span>
+                          <span class="team-score">{{ game.homeScore ?? '-' }}</span>
+                        </div>
+                      </div>
+                      <p class="meta">{{ game.date | date: 'EEE d MMM' : slovakTimezone }} | {{ game.date | date: 'HH:mm' : slovakTimezone }} SK</p>
+                      @if (game.venue) {
+                        <p class="meta">Venue: {{ game.venue }}</p>
+                      }
+                    </article>
+                  }
+                </div>
+              </div>
+
+              @if (olderFinishedGames.length) {
+                <div class="section-head compact">
+                  <div>
+                    <h5 class="subsection-title">Older Results</h5>
+                    <p class="meta">Starsie odohrane zapasy.</p>
+                  </div>
+                  <span class="section-chip">{{ olderFinishedGames.length }}</span>
+                </div>
+
+                <div class="score-grid">
+                  @for (game of olderFinishedGames; track game.id) {
+                    <article class="score-card">
+                      <div class="score-head">
+                        <span class="status-pill">{{ game.status }}</span>
+                        <span class="meta">{{ game.detail }}</span>
+                      </div>
+                      <div class="score-teams">
+                        <div class="team-row">
+                          <span class="team-name">{{ game.awayTeam }}</span>
+                          <span class="team-score">{{ game.awayScore ?? '-' }}</span>
+                        </div>
+                        <div class="team-row">
+                          <span class="team-name">{{ game.homeTeam }}</span>
+                          <span class="team-score">{{ game.homeScore ?? '-' }}</span>
+                        </div>
+                      </div>
+                      <p class="meta">{{ game.date | date: 'EEE d MMM' : slovakTimezone }} | {{ game.date | date: 'HH:mm' : slovakTimezone }} SK</p>
+                      @if (game.venue) {
+                        <p class="meta">Venue: {{ game.venue }}</p>
+                      }
+                    </article>
+                  }
+                </div>
+              }
+            }
+          </div>
+        </details>
+      }
+    </div>
+  </details>
+
+  <details class="widget-block collapsible">
+    <summary class="collapse-head">
       <h3 class="section-title">News</h3>
       <span class="section-chip">Latest headlines</span>
+    </summary>
+
+    <div class="collapse-body">
+      @if (errorNews) {
+        <p class="meta">{{ errorNews }}</p>
+      } @else if (loadingNews) {
+        <p class="meta">Loading league news...</p>
+      } @else if (!news.length) {
+        <p class="meta">No league news available.</p>
+      } @else {
+        <div class="news-grid">
+          @for (item of news; track item.id) {
+            <article class="news-card">
+              @if (item.image) {
+                <img [src]="item.image" [alt]="item.headline" loading="lazy" />
+              }
+              <div class="news-body">
+                <h4>{{ item.headline }}</h4>
+                <p class="meta">{{ item.description }}</p>
+                <p class="meta">{{ item.published | date: 'EEE d MMM, HH:mm' : slovakTimezone }} SK</p>
+              </div>
+            </article>
+          }
+        </div>
+      }
     </div>
+  </details>
 
-    @if (errorNews) {
-      <p class="meta">{{ errorNews }}</p>
-    } @else if (loadingNews) {
-      <p class="meta">Loading league news...</p>
-    } @else if (!news.length) {
-      <p class="meta">No league news available.</p>
-    } @else {
-      <div class="news-grid">
-        @for (item of news; track item.id) {
-          <article class="news-card">
-            @if (item.image) {
-              <img [src]="item.image" [alt]="item.headline" loading="lazy" />
-            }
-            <div class="news-body">
-              <h4>{{ item.headline }}</h4>
-              <p class="meta">{{ item.description }}</p>
-              <p class="meta">{{ item.published | date: 'EEE d MMM, HH:mm' }}</p>
-            </div>
-          </article>
-        }
-      </div>
-    }
-  </section>
-
-  <section class="widget-block">
-    <div class="section-head">
+  <details class="widget-block collapsible">
+    <summary class="collapse-head">
       <h3 class="section-title">Teams</h3>
       <span class="section-chip">League teams</span>
-    </div>
+    </summary>
 
-    @if (errorTeams) {
-      <p class="meta">{{ errorTeams }}</p>
-    } @else if (loadingTeams) {
-      <p class="meta">Loading league teams...</p>
-    } @else if (!teams.length) {
-      <p class="meta">No teams available.</p>
-    } @else {
-      <div class="team-grid">
-        @for (team of teams; track team.id) {
-          <button
-            type="button"
-            class="team-card"
-            [class.active]="selectedTeam?.id === team.id"
-            (click)="selectTeam(team)">
-            @if (team.logo) {
-              <img [src]="team.logo" [alt]="team.name" loading="lazy" />
+    <div class="collapse-body">
+      @if (errorTeams) {
+        <p class="meta">{{ errorTeams }}</p>
+      } @else if (loadingTeams) {
+        <p class="meta">Loading league teams...</p>
+      } @else if (!teams.length) {
+        <p class="meta">No teams available.</p>
+      } @else {
+        <div class="team-grid">
+          @for (team of teams; track team.id) {
+            <button
+              type="button"
+              class="team-card"
+              [class.active]="selectedTeam?.id === team.id"
+              (click)="selectTeam(team)">
+              @if (team.logo) {
+                <img [src]="team.logo" [alt]="team.name" loading="lazy" />
+              }
+              <div>
+                <strong>{{ team.name }}</strong>
+                <span class="meta">{{ team.abbreviation }}</span>
+              </div>
+            </button>
+          }
+        </div>
+      }
+
+      @if (selectedTeam) {
+        <article class="team-detail">
+          <div class="team-detail-head">
+            @if (teamDetail?.logo) {
+              <img [src]="teamDetail?.logo" [alt]="selectedTeam.name" loading="lazy" />
             }
             <div>
-              <strong>{{ team.name }}</strong>
-              <span class="meta">{{ team.abbreviation }}</span>
+              <h4>{{ teamDetail?.name ?? selectedTeam.name }}</h4>
+              <p class="meta">{{ teamDetail?.location }} | {{ teamDetail?.abbreviation }}</p>
             </div>
-          </button>
-        }
-      </div>
-    }
+          </div>
 
-    @if (selectedTeam) {
-      <article class="team-detail">
-        <div class="team-detail-head">
-          @if (teamDetail?.logo) {
-            <img [src]="teamDetail?.logo" [alt]="selectedTeam?.name" loading="lazy" />
+          @if (errorTeam) {
+            <p class="meta">{{ errorTeam }}</p>
+          } @else if (loadingTeam) {
+            <p class="meta">Loading team details...</p>
+          } @else {
+            <div class="team-detail-grid">
+              <div>
+                <span class="label">Record</span>
+                <strong>{{ teamDetail?.record ?? 'N/A' }}</strong>
+              </div>
+              <div>
+                <span class="label">Venue</span>
+                <strong>{{ teamDetail?.venue ?? 'N/A' }}</strong>
+              </div>
+              <div>
+                <span class="label">Colors</span>
+                <strong>{{ teamDetail?.color ?? 'N/A' }}{{ teamDetail?.alternateColor ? ' / ' + teamDetail?.alternateColor : '' }}</strong>
+              </div>
+            </div>
           }
-          <div>
-            <h4>{{ teamDetail?.name ?? selectedTeam?.name }}</h4>
-            <p class="meta">{{ teamDetail?.location }} | {{ teamDetail?.abbreviation }}</p>
-          </div>
-        </div>
-
-        @if (errorTeam) {
-          <p class="meta">{{ errorTeam }}</p>
-        } @else if (loadingTeam) {
-          <p class="meta">Loading team details...</p>
-        } @else {
-          <div class="team-detail-grid">
-            <div>
-              <span class="label">Record</span>
-              <strong>{{ teamDetail?.record ?? 'N/A' }}</strong>
-            </div>
-            <div>
-              <span class="label">Venue</span>
-              <strong>{{ teamDetail?.venue ?? 'N/A' }}</strong>
-            </div>
-            <div>
-              <span class="label">Colors</span>
-              <strong>{{ teamDetail?.color ?? 'N/A' }}{{ teamDetail?.alternateColor ? ' / ' + teamDetail?.alternateColor : '' }}</strong>
-            </div>
-          </div>
-        }
-      </article>
-    }
-  </section>
+        </article>
+      }
+    </div>
+  </details>
 </section>

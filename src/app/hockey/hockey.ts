@@ -17,6 +17,7 @@ import {
 export class Hockey implements OnInit {
   readonly pageTitle = 'Hockey Events';
   readonly subtitle = 'Live NHL scores, news, and team data from ESPN APIs.';
+  readonly slovakTimezone = 'Europe/Bratislava';
 
   loadingScores = true;
   loadingNews = true;
@@ -83,6 +84,18 @@ export class Hockey implements OnInit {
     this.loadTeamDetail(team.id);
   }
 
+  get scheduledGames(): HockeyGame[] {
+    return this.games.filter((game) => this.isScheduledGame(game));
+  }
+
+  get liveGames(): HockeyGame[] {
+    return this.games.filter((game) => this.isLiveGame(game));
+  }
+
+  get finishedGames(): HockeyGame[] {
+    return this.games.filter((game) => this.isFinishedGame(game));
+  }
+
   private loadTeamDetail(teamId: string): void {
     this.loadingTeam = true;
     this.errorTeam = '';
@@ -96,5 +109,19 @@ export class Hockey implements OnInit {
         this.loadingTeam = false;
       },
     });
+  }
+
+  private isScheduledGame(game: HockeyGame): boolean {
+    return !this.isLiveGame(game) && !this.isFinishedGame(game);
+  }
+
+  private isLiveGame(game: HockeyGame): boolean {
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('live') || normalized.includes('progress') || normalized.includes('intermission');
+  }
+
+  private isFinishedGame(game: HockeyGame): boolean {
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('final') || normalized.includes('post');
   }
 }

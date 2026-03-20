@@ -54,6 +54,46 @@
   padding: 12px;
 }
 
+.collapsible {
+  overflow: hidden;
+}
+
+.collapse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapse-head::-webkit-details-marker {
+  display: none;
+}
+
+.collapse-head::after {
+  content: '+';
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid #365785;
+  background: #1d3354;
+  color: #dce9ff;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.collapsible[open] > .collapse-head::after {
+  content: '-';
+}
+
+.collapse-body {
+  margin-top: 12px;
+}
+
 .section-head {
   display: flex;
   align-items: center;
@@ -91,6 +131,23 @@
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 10px;
+}
+
+.score-section {
+  display: grid;
+  gap: 10px;
+}
+
+.score-section + .score-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #294365;
+}
+
+.subsection-title {
+  margin: 0;
+  color: #f3f7ff;
+  font-size: 0.95rem;
 }
 
 .score-card,
@@ -244,6 +301,10 @@
 @media (max-width: 800px) {
   .sport-hero {
     flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .collapse-head {
     align-items: flex-start;
   }
 }

@@ -84,7 +84,7 @@
   margin: 0 auto;
   padding: 22px;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr) 320px;
+  grid-template-columns: minmax(0, 1fr) 320px;
   gap: 16px;
   align-items: start;
 }
@@ -93,118 +93,12 @@
   min-width: 0;
 }
 
-.left-rail,
 .right-rail {
   position: sticky;
   top: 86px;
   display: grid;
   gap: 12px;
   align-content: start;
-}
-
-.league-panel {
-  border: 1px solid var(--line);
-  border-radius: 14px;
-  background: linear-gradient(155deg, rgba(16, 30, 52, 0.98), #0b1426);
-  padding: 12px;
-  display: grid;
-  gap: 10px;
-}
-
-.league-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: start;
-  gap: 10px;
-}
-
-.league-header h3 {
-  margin: 0;
-}
-
-.league-subtitle {
-  margin: 2px 0 0;
-  color: var(--text-soft);
-  font-size: 0.76rem;
-}
-
-.icon-btn {
-  border: 1px solid #3f5f8b;
-  background: #203252;
-  color: #dce9ff;
-  border-radius: 10px;
-  padding: 7px 10px;
-  cursor: pointer;
-  white-space: nowrap;
-}
-
-.icon-btn:disabled {
-  opacity: 0.6;
-  cursor: not-allowed;
-}
-
-.league-tools {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) auto;
-  gap: 8px;
-  align-items: center;
-}
-
-.league-tools input {
-  border: 1px solid #3f5f8b;
-  background: #16243c;
-  color: #e8f0ff;
-  border-radius: 10px;
-  padding: 8px 10px;
-}
-
-.league-pill {
-  justify-self: end;
-  border: 1px solid #314a72;
-  background: rgba(20, 37, 63, 0.9);
-  color: #b7c8e6;
-  border-radius: 999px;
-  padding: 6px 10px;
-  font-size: 0.76rem;
-}
-
-.league-error {
-  margin: 0;
-  color: #ffb3aa;
-  font-size: 0.86rem;
-}
-
-.league-list {
-  border: 1px solid #314a72;
-  background: rgba(14, 25, 44, 0.96);
-  border-radius: 12px;
-  padding: 8px;
-  display: grid;
-  gap: 6px;
-  max-height: 260px;
-  overflow: auto;
-}
-
-.league-item {
-  display: flex;
-  justify-content: space-between;
-  gap: 10px;
-  padding: 7px 8px;
-  border-radius: 10px;
-  border: 1px solid rgba(49, 74, 114, 0.65);
-  background: rgba(22, 36, 60, 0.85);
-  color: #e9f0ff;
-}
-
-.league-item small {
-  color: #9fb5d8;
-}
-
-.league-empty {
-  margin: 0;
-  color: #9fb5d8;
-  font-size: 0.86rem;
-  padding: 6px 4px;
 }
 
 .betslip {
@@ -410,7 +304,6 @@
     grid-template-columns: 1fr;
   }
 
-  .left-rail,
   .right-rail {
     position: static;
   }

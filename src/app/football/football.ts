@@ -23,6 +23,7 @@ interface SoccerLeagueOption {
 export class Football implements OnInit {
   readonly pageTitle = 'Football Events';
   readonly subtitle = 'Live soccer scores, news, and teams from ESPN APIs.';
+  readonly slovakTimezone = 'Europe/Bratislava';
 
   readonly leagues: SoccerLeagueOption[] = [
     { id: 'eng.1', label: 'Premier League' },
@@ -61,6 +62,43 @@ export class Football implements OnInit {
 
   onLeagueChange(): void {
     this.reloadLeague();
+  }
+
+  get scheduledGames(): SoccerGame[] {
+    return this.games.filter((game) => this.isScheduledGame(game));
+  }
+
+  get liveGames(): SoccerGame[] {
+    return this.games.filter((game) => this.isLiveGame(game));
+  }
+
+  get finishedGames(): SoccerGame[] {
+    return this.games.filter((game) => this.isFinishedGame(game));
+  }
+
+  get latestMatchdayGames(): SoccerGame[] {
+    const finishedGames = this.finishedGames;
+
+    if (!finishedGames.length) {
+      return [];
+    }
+
+    const latestMatchday = finishedGames.reduce<string | null>((latest, game) => {
+      const gameDay = this.toSlovakDayKey(game.date);
+
+      if (!latest || gameDay > latest) {
+        return gameDay;
+      }
+
+      return latest;
+    }, null);
+
+    return finishedGames.filter((game) => this.toSlovakDayKey(game.date) === latestMatchday);
+  }
+
+  get olderFinishedGames(): SoccerGame[] {
+    const latestIds = new Set(this.latestMatchdayGames.map((game) => game.id));
+    return this.finishedGames.filter((game) => !latestIds.has(game.id));
   }
 
   selectTeam(team: SoccerTeam | null): void {
@@ -143,5 +181,52 @@ export class Football implements OnInit {
     this.teams = [];
     this.selectedTeam = null;
     this.teamDetail = null;
+  }
+
+  private isScheduledGame(game: SoccerGame): boolean {
+    return !this.isLiveGame(game) && !this.isFinishedGame(game);
+  }
+
+  private isLiveGame(game: SoccerGame): boolean {
+    if (this.isFutureGame(game)) {
+      return false;
+    }
+
+    if (game.state?.toLowerCase() === 'in') {
+      return true;
+    }
+
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('live') || normalized.includes('progress') || normalized.includes('half');
+  }
+
+  private isFinishedGame(game: SoccerGame): boolean {
+    if (this.isFutureGame(game)) {
+      return false;
+    }
+
+    if (game.completed || game.state?.toLowerCase() === 'post') {
+      return true;
+    }
+
+    if (game.state?.toLowerCase() === 'pre') {
+      return false;
+    }
+
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('final') || normalized.includes('post') || normalized.includes('after');
+  }
+
+  private isFutureGame(game: SoccerGame): boolean {
+    return new Date(game.date).getTime() > Date.now();
+  }
+
+  private toSlovakDayKey(value: string): string {
+    return new Intl.DateTimeFormat('sv-SE', {
+      timeZone: this.slovakTimezone,
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(new Date(value));
   }
 }

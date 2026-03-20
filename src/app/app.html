@@ -17,64 +17,6 @@
   </header>
 
   <main class="content-layout">
-    <aside class="left-rail">
-      <section class="league-panel">
-        <header class="league-header">
-          <div>
-            <h3>{{ currentSportLabel() }}</h3>
-            <p class="league-subtitle">Leagues (bet365 get_leagues)</p>
-          </div>
-          <button type="button" class="icon-btn" (click)="refreshLeagues()" [disabled]="leaguesLoading()">
-            Refresh
-          </button>
-        </header>
-
-        <div class="league-tools">
-          <input
-            type="search"
-            placeholder="Search league..."
-            [ngModel]="leagueSearch()"
-            (ngModelChange)="leagueSearch.set($event)"
-            [disabled]="leaguesLoading()"
-          />
-          @if (leaguesLoading()) {
-            <span class="league-pill">Loading</span>
-          } @else {
-            @if (currentSport()) {
-              <span class="league-pill">{{ visibleLeagues().length }} / {{ leagues().length }}</span>
-            } @else {
-              <span class="league-pill">{{ leagues().length }} total</span>
-            }
-          }
-        </div>
-
-        @if (leaguesError()) {
-          <p class="league-error">{{ leaguesError() }}</p>
-        }
-
-        @if (!currentSport()) {
-          <p class="league-empty">Open Football / Hockey / Tennis to see sport leagues.</p>
-        } @else {
-          <div class="league-list" role="region" aria-label="Sport leagues">
-            @if (!leaguesLoading() && !leagues().length) {
-              <p class="league-empty">Nothing loaded yet. Click Refresh.</p>
-            } @else if (!visibleLeagues().length) {
-              <p class="league-empty">
-                No leagues for this sport. If your API response does not include a sport field per league, send me a sample JSON and I’ll map it correctly.
-              </p>
-            } @else {
-              @for (league of visibleLeagues(); track league.id) {
-                <div class="league-item">
-                  <span>{{ league.name }}</span>
-                  <small>#{{ league.id }}</small>
-                </div>
-              }
-            }
-          </div>
-        }
-      </section>
-    </aside>
-
     <section class="content">
       <router-outlet></router-outlet>
     </section>
