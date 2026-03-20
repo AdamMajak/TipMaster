@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import {
   EspnSoccerService,
   SoccerGame,
@@ -8,15 +9,11 @@ import {
   SoccerTeam,
   SoccerTeamDetail,
 } from '../shared/espn-soccer.service';
-
-interface SoccerLeagueOption {
-  id: string;
-  label: string;
-}
+import { ESPN_SOCCER_LEAGUES, SoccerLeagueOption } from '../shared/espn-soccer-leagues';
 
 @Component({
   selector: 'app-football',
-  imports: [DatePipe, FormsModule],
+  imports: [DatePipe, FormsModule, RouterLink],
   templateUrl: './football.html',
   styleUrls: ['./football.css'],
 })
@@ -25,16 +22,7 @@ export class Football implements OnInit {
   readonly subtitle = 'Live soccer scores, news, and teams from ESPN APIs.';
   readonly slovakTimezone = 'Europe/Bratislava';
 
-  readonly leagues: SoccerLeagueOption[] = [
-    { id: 'eng.1', label: 'Premier League' },
-    { id: 'esp.1', label: 'LaLiga' },
-    { id: 'ita.1', label: 'Serie A' },
-    { id: 'ger.1', label: 'Bundesliga' },
-    { id: 'fra.1', label: 'Ligue 1' },
-    { id: 'uefa.champions', label: 'Champions League' },
-    { id: 'uefa.europa', label: 'Europa League' },
-    { id: 'usa.1', label: 'MLS' },
-  ];
+  readonly leagues: SoccerLeagueOption[] = ESPN_SOCCER_LEAGUES;
 
   selectedLeague = this.leagues[0]?.id ?? 'eng.1';
 
@@ -111,6 +99,7 @@ export class Football implements OnInit {
     this.selectedTeam = team;
     this.loadTeamDetail(team.id);
   }
+
 
   private reloadLeague(): void {
     this.resetLeagueState();

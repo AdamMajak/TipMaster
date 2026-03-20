@@ -54,120 +54,194 @@
   padding: 12px;
 }
 
+.collapsible {
+  overflow: hidden;
+}
+
+.collapse-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  cursor: pointer;
+  list-style: none;
+}
+
+.collapse-head::-webkit-details-marker {
+  display: none;
+}
+
+.collapse-head::after {
+  content: '+';
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  border: 1px solid #365785;
+  background: #1d3354;
+  color: #dce9ff;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.collapsible[open] > .collapse-head::after {
+  content: '-';
+}
+
+.collapse-body {
+  margin-top: 12px;
+}
+
+.section-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.section-title {
+  margin: 0;
+  color: #f3f7ff;
+  font-size: 1.05rem;
+}
+
+.section-chip {
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  background: #1c3356;
+  color: #bdd3f5;
+  border: 1px solid #2d4a78;
+}
+
+.league-select select {
+  border-radius: 10px;
+  border: 1px solid #3f5f8b;
+  background: #203252;
+  color: #e3eeff;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  min-width: 180px;
+}
+
 .meta {
   margin: 0;
   color: #98afd5;
   font-size: 0.86rem;
 }
 
-.odds-grid {
+.score-grid,
+.news-grid {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
   gap: 10px;
 }
 
-.odds-card {
+.score-section {
+  display: grid;
+  gap: 10px;
+}
+
+.score-section + .score-section {
+  margin-top: 16px;
+  padding-top: 16px;
+  border-top: 1px solid #294365;
+}
+
+.subsection-title {
+  margin: 0;
+  color: #f3f7ff;
+  font-size: 0.95rem;
+}
+
+.score-card,
+.news-card {
   border: 1px solid #314a72;
   background: #16243c;
   border-radius: 10px;
   padding: 10px;
   text-align: left;
-  cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  touch-action: manipulation;
   color: inherit;
 }
 
-.odds-card:hover {
-  border-color: #4b73ab;
-  transform: translateY(-1px);
+.score-card {
+  display: grid;
+  gap: 10px;
 }
 
-.odds-card.active {
-  border-color: #ffb14a;
-  box-shadow: 0 0 0 1px rgba(255, 177, 74, 0.3);
-}
-
-.teams {
+.score-head {
   display: flex;
-  gap: 8px;
   align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.status-pill {
+  background: #203a63;
+  color: #e6f0ff;
+  border: 1px solid #345682;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.75rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  font-weight: 700;
+}
+
+.score-teams {
+  display: grid;
+  gap: 6px;
+}
+
+.team-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
   color: #f2f6ff;
 }
 
-.prices {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-  margin-top: 8px;
+.team-score {
+  font-weight: 700;
+  font-size: 1.1rem;
 }
 
-.detail-card {
-  margin-top: 14px;
-  border: 1px solid #456892;
-  background: linear-gradient(145deg, #192b47, #121f34);
-  border-radius: 12px;
-  padding: 14px;
-}
-
-.detail-card h3 {
-  margin: 0 0 8px;
-  color: #eff5ff;
-}
-
-.detail-prices {
+.news-card {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
-  gap: 8px;
-  margin-top: 10px;
+  gap: 10px;
 }
 
-.price-btn {
-  border-radius: 10px;
-  border: 1px solid #3f5f8b;
-  background: #203252;
-  color: #dce9ff;
-  min-width: 78px;
-  padding: 6px 8px;
-  display: grid;
-  gap: 3px;
-  text-align: center;
-  cursor: pointer;
-  transition: 0.2s ease;
-}
-
-.price-btn span {
-  display: block;
-  font-size: 0.75rem;
-  color: #a8bddf;
-}
-
-.price-btn b,
-.price-btn strong {
-  margin: 0;
-  color: #ffcb88;
-  font-size: 0.95rem;
-}
-
-.price-btn:hover {
-  border-color: #6f97cd;
-  transform: translateY(-1px);
-}
-
-.price-btn.selected {
-  border-color: #ffb14a;
-  background: #2a3c5f;
-  box-shadow: 0 0 0 1px rgba(255, 177, 74, 0.25);
-}
-
-.detail-btn {
+.news-card img {
   width: 100%;
-  padding: 10px;
+  border-radius: 8px;
+  border: 1px solid #2c456e;
+  object-fit: cover;
+}
+
+.news-card h4 {
+  margin: 0 0 6px;
+  color: #f1f6ff;
 }
 
 @media (max-width: 800px) {
   .sport-hero {
     flex-direction: column;
     align-items: flex-start;
+  }
+
+  .section-head {
+    flex-direction: column;
+    align-items: flex-start;
+  }
+
+  .collapse-head {
+    align-items: flex-start;
+  }
+
+  .league-select select {
+    width: 100%;
   }
 }

@@ -1,85 +1,111 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
-import { OddsEvent, OddsService } from '../shared/odds.service';
-import { SPORT_KEYS } from '../shared/rapidapi-odds';
-import { BetSlipService } from '../shared/betslip.service';
+import { FormsModule } from '@angular/forms';
+import { EspnTennisLeague, EspnTennisService, TennisGame, TennisNewsItem } from '../shared/espn-tennis.service';
 
-interface SportMatch {
-  id: string;
-  kickoff: string;
-  homeTeam: string;
-  awayTeam: string;
-  bookmaker: string;
-  odds: Array<{ name: string; price: number }>;
+interface TennisLeagueOption {
+  id: EspnTennisLeague;
+  label: string;
 }
 
 @Component({
   selector: 'app-tennis',
-  imports: [DatePipe],
+  imports: [DatePipe, FormsModule],
   templateUrl: './tennis.html',
   styleUrl: './tennis.css',
 })
 export class Tennis implements OnInit {
   readonly pageTitle = 'Tennis Events';
-  readonly subtitle = 'Live tennis events from Betfair Orbit API.';
+  readonly subtitle = 'ATP / WTA scoreboard and news from ESPN APIs.';
+  readonly slovakTimezone = 'Europe/Bratislava';
 
-  loading = true;
-  error = '';
-  matches: SportMatch[] = [];
-  selectedMatch: SportMatch | null = null;
+  readonly leagues: TennisLeagueOption[] = [
+    { id: 'atp', label: 'ATP' },
+    { id: 'wta', label: 'WTA' },
+  ];
 
-  constructor(
-    private readonly oddsService: OddsService,
-    private readonly betSlipService: BetSlipService
-  ) {}
+  selectedLeague: EspnTennisLeague = 'atp';
+
+  loadingScores = true;
+  loadingNews = true;
+  errorScores = '';
+  errorNews = '';
+
+  games: TennisGame[] = [];
+  news: TennisNewsItem[] = [];
+
+  constructor(private readonly tennisService: EspnTennisService) {}
 
   ngOnInit(): void {
-    this.oddsService.getOddsBySport(SPORT_KEYS.tennis).subscribe({
-      next: (events) => {
-        this.matches = events.slice(0, 16).map((event) => this.toSportMatch(event));
-        this.selectedMatch = this.matches[0] ?? null;
-        this.loading = false;
+    this.reloadLeague();
+  }
+
+  onLeagueChange(): void {
+    this.reloadLeague();
+  }
+
+  get scheduledGames(): TennisGame[] {
+    return this.games.filter((game) => this.isScheduledGame(game));
+  }
+
+  get liveGames(): TennisGame[] {
+    return this.games.filter((game) => this.isLiveGame(game));
+  }
+
+  get finishedGames(): TennisGame[] {
+    return this.games.filter((game) => this.isFinishedGame(game));
+  }
+
+  private reloadLeague(): void {
+    this.loadingScores = true;
+    this.loadingNews = true;
+    this.errorScores = '';
+    this.errorNews = '';
+    this.games = [];
+    this.news = [];
+
+    this.tennisService.getScoreboard(this.selectedLeague).subscribe({
+      next: (games) => {
+        this.games = games;
+        this.loadingScores = false;
       },
       error: (err) => {
-        this.error = err?.message ?? 'Failed to load tennis events.';
-        this.loading = false;
+        this.errorScores = err?.message ?? 'Failed to load tennis scoreboard.';
+        this.loadingScores = false;
+      },
+    });
+
+    this.tennisService.getNews(this.selectedLeague).subscribe({
+      next: (news) => {
+        this.news = news;
+        this.loadingNews = false;
+      },
+      error: (err) => {
+        this.errorNews = err?.message ?? 'Failed to load tennis news.';
+        this.loadingNews = false;
       },
     });
   }
 
-  private toSportMatch(event: OddsEvent): SportMatch {
-    const fallbackBookmaker = { title: 'N/A', markets: [{ outcomes: [] as Array<{ name: string; price: number }> }] };
-    const bookmaker = event.bookmakers?.find((b) => b.markets?.some((m) => m.key === 'h2h')) ?? event.bookmakers?.[0] ?? fallbackBookmaker;
-    const h2h = bookmaker.markets?.find((m) => m.key === 'h2h') ?? bookmaker.markets?.[0];
-
-    return {
-      id: event.id,
-      kickoff: event.commence_time,
-      homeTeam: event.home_team,
-      awayTeam: event.away_team,
-      bookmaker: bookmaker.title,
-      odds: (h2h?.outcomes ?? []).slice(0, 3),
-    };
+  private isScheduledGame(game: TennisGame): boolean {
+    return !this.isLiveGame(game) && !this.isFinishedGame(game);
   }
 
-  selectMatch(match: SportMatch): void {
-    this.selectedMatch = match;
+  private isLiveGame(game: TennisGame): boolean {
+    if (game.state?.toLowerCase() === 'in') {
+      return true;
+    }
+
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('live') || normalized.includes('in progress') || normalized.includes('progress');
   }
 
-  addToSlip(event: MouseEvent, match: SportMatch, odd: { name: string; price: number }): void {
-    event.stopPropagation();
-    this.betSlipService.toggleSelection({
-      eventId: match.id,
-      sport: 'Tennis',
-      homeTeam: match.homeTeam,
-      awayTeam: match.awayTeam,
-      kickoff: match.kickoff,
-      market: odd.name,
-      odds: odd.price,
-    });
-  }
+  private isFinishedGame(game: TennisGame): boolean {
+    if (game.completed || game.state?.toLowerCase() === 'post') {
+      return true;
+    }
 
-  isSelected(match: SportMatch, odd: { name: string; price: number }): boolean {
-    return this.betSlipService.isSelected(match.id, odd.name);
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('final') || normalized.includes('post');
   }
 }

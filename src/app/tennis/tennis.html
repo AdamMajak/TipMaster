@@ -5,65 +5,179 @@
       <h2>{{ pageTitle }}</h2>
       <p>{{ subtitle }}</p>
     </div>
-    <span class="sport-status">Live feed</span>
+    <span class="sport-status">ESPN tennis feed</span>
   </header>
 
   <section class="widget-block">
-    @if (error) {
-      <p class="meta">{{ error }}</p>
-    } @else if (loading) {
-      <p class="meta">Loading tennis events...</p>
-    } @else if (!matches.length) {
-      <p class="meta">No tennis events are available right now.</p>
-    } @else {
-      <div class="odds-grid">
-        @for (match of matches; track match.id) {
-          <article
-            class="odds-card"
-            [class.active]="selectedMatch?.id === match.id"
-            (click)="selectMatch(match)">
-            <div class="teams">
-              <strong>{{ match.homeTeam }}</strong>
-              <span>vs</span>
-              <strong>{{ match.awayTeam }}</strong>
-            </div>
-            <p class="meta">{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} | {{ match.bookmaker }}</p>
-            <div class="prices">
-              @for (odd of match.odds; track odd.name) {
-                <button
-                  type="button"
-                  class="price-btn"
-                  [class.selected]="isSelected(match, odd)"
-                  (click)="addToSlip($event, match, odd)">
-                  <span>{{ odd.name }}</span>
-                  <b>{{ odd.price }}</b>
-                </button>
-              }
-            </div>
-          </article>
-        }
+    <div class="section-head">
+      <div>
+        <h3 class="section-title">League</h3>
+        <p class="meta">Vyber ATP alebo WTA feed.</p>
       </div>
+      <div class="league-select">
+        <select [(ngModel)]="selectedLeague" (change)="onLeagueChange()">
+          @for (league of leagues; track league.id) {
+            <option [value]="league.id">{{ league.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </section>
 
-      @if (selectedMatch) {
-        <article class="detail-card">
-          <h3>{{ selectedMatch.homeTeam }} vs {{ selectedMatch.awayTeam }}</h3>
-          <p class="meta">
-            Kickoff: {{ selectedMatch.kickoff | date: 'EEEE, d MMMM y, HH:mm' }} | Bookmaker: {{ selectedMatch.bookmaker }}
-          </p>
-          <div class="detail-prices">
-            @for (odd of selectedMatch.odds; track odd.name) {
-              <button
-                type="button"
-                class="price-btn detail-btn"
-                [class.selected]="isSelected(selectedMatch, odd)"
-                (click)="addToSlip($event, selectedMatch, odd)">
-                <span>{{ odd.name }}</span>
-                <strong>{{ odd.price }}</strong>
-              </button>
+  <details class="widget-block collapsible" open>
+    <summary class="collapse-head">
+      <div>
+        <h3 class="section-title">Scoreboard</h3>
+        <p class="meta">Cas je zobrazovany v slovenskom pasme (CET/CEST).</p>
+      </div>
+      <span class="section-chip">Matches</span>
+    </summary>
+
+    <div class="collapse-body">
+      @if (errorScores) {
+        <p class="meta">{{ errorScores }}</p>
+      } @else if (loadingScores) {
+        <p class="meta">Loading tennis scoreboard...</p>
+      } @else if (!games.length) {
+        <p class="meta">No tennis matches are available right now.</p>
+      } @else {
+        <details class="score-section collapsible" open>
+          <summary class="collapse-head compact">
+            <h4 class="subsection-title">Program</h4>
+            <span class="section-chip">{{ scheduledGames.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            @if (!scheduledGames.length) {
+              <p class="meta">No upcoming matches in the selected range.</p>
+            } @else {
+              <div class="score-grid">
+                @for (game of scheduledGames; track game.id) {
+                  <article class="score-card">
+                    <div class="score-head">
+                      <span class="status-pill">{{ game.status }}</span>
+                      <span class="meta">{{ game.tournament ?? '' }}{{ game.round ? ' • ' + game.round : '' }}</span>
+                    </div>
+                    <div class="score-teams">
+                      <div class="team-row">
+                        <span class="team-name">{{ game.playerA }}</span>
+                        <span class="team-score">{{ game.scoreA ?? '-' }}</span>
+                      </div>
+                      <div class="team-row">
+                        <span class="team-name">{{ game.playerB }}</span>
+                        <span class="team-score">{{ game.scoreB ?? '-' }}</span>
+                      </div>
+                    </div>
+                    <p class="meta">{{ game.date | date: 'EEE d MMM' : slovakTimezone }} | {{ game.date | date: 'HH:mm' : slovakTimezone }} SK</p>
+                    @if (game.venue) {
+                      <p class="meta">Venue: {{ game.venue }}</p>
+                    }
+                  </article>
+                }
+              </div>
             }
           </div>
-        </article>
+        </details>
+
+        <details class="score-section collapsible" open>
+          <summary class="collapse-head compact">
+            <h4 class="subsection-title">Live</h4>
+            <span class="section-chip">{{ liveGames.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            @if (!liveGames.length) {
+              <p class="meta">No live matches right now.</p>
+            } @else {
+              <div class="score-grid">
+                @for (game of liveGames; track game.id) {
+                  <article class="score-card">
+                    <div class="score-head">
+                      <span class="status-pill">{{ game.status }}</span>
+                      <span class="meta">{{ game.tournament ?? '' }}{{ game.round ? ' • ' + game.round : '' }}</span>
+                    </div>
+                    <div class="score-teams">
+                      <div class="team-row">
+                        <span class="team-name">{{ game.playerA }}</span>
+                        <span class="team-score">{{ game.scoreA ?? '-' }}</span>
+                      </div>
+                      <div class="team-row">
+                        <span class="team-name">{{ game.playerB }}</span>
+                        <span class="team-score">{{ game.scoreB ?? '-' }}</span>
+                      </div>
+                    </div>
+                    <p class="meta">{{ game.date | date: 'EEE d MMM' : slovakTimezone }} | {{ game.date | date: 'HH:mm' : slovakTimezone }} SK</p>
+                  </article>
+                }
+              </div>
+            }
+          </div>
+        </details>
+
+        <details class="score-section collapsible">
+          <summary class="collapse-head compact">
+            <h4 class="subsection-title">Results</h4>
+            <span class="section-chip">{{ finishedGames.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            @if (!finishedGames.length) {
+              <p class="meta">No finished matches in the selected range.</p>
+            } @else {
+              <div class="score-grid">
+                @for (game of finishedGames; track game.id) {
+                  <article class="score-card">
+                    <div class="score-head">
+                      <span class="status-pill">{{ game.status }}</span>
+                      <span class="meta">{{ game.tournament ?? '' }}{{ game.round ? ' • ' + game.round : '' }}</span>
+                    </div>
+                    <div class="score-teams">
+                      <div class="team-row">
+                        <span class="team-name">{{ game.playerA }}</span>
+                        <span class="team-score">{{ game.scoreA ?? '-' }}</span>
+                      </div>
+                      <div class="team-row">
+                        <span class="team-name">{{ game.playerB }}</span>
+                        <span class="team-score">{{ game.scoreB ?? '-' }}</span>
+                      </div>
+                    </div>
+                    <p class="meta">{{ game.date | date: 'EEE d MMM' : slovakTimezone }} | {{ game.date | date: 'HH:mm' : slovakTimezone }} SK</p>
+                  </article>
+                }
+              </div>
+            }
+          </div>
+        </details>
       }
-    }
-  </section>
+    </div>
+  </details>
+
+  <details class="widget-block collapsible">
+    <summary class="collapse-head">
+      <h3 class="section-title">News</h3>
+      <span class="section-chip">Latest headlines</span>
+    </summary>
+
+    <div class="collapse-body">
+      @if (errorNews) {
+        <p class="meta">{{ errorNews }}</p>
+      } @else if (loadingNews) {
+        <p class="meta">Loading tennis news...</p>
+      } @else if (!news.length) {
+        <p class="meta">No tennis news available.</p>
+      } @else {
+        <div class="news-grid">
+          @for (item of news; track item.id) {
+            <article class="news-card">
+              @if (item.image) {
+                <img [src]="item.image" [alt]="item.headline" loading="lazy" />
+              }
+              <div class="news-body">
+                <h4>{{ item.headline }}</h4>
+                <p class="meta">{{ item.description }}</p>
+                <p class="meta">{{ item.published | date: 'EEE d MMM, HH:mm' : slovakTimezone }} SK</p>
+              </div>
+            </article>
+          }
+        </div>
+      }
+    </div>
+  </details>
 </section>

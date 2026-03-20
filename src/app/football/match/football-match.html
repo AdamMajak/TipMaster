@@ -1,0 +1,194 @@
+<section class="sport-page">
+  <header class="sport-hero">
+    <div>
+      <p class="sport-tag">FOOTBALL</p>
+      <h2>Match Detail</h2>
+      <p class="meta">League: {{ league }} • Event: {{ eventId }}</p>
+    </div>
+    <a class="sport-status" [routerLink]="['/football']">Back to Football</a>
+  </header>
+
+  <section class="widget-block">
+    @if (error) {
+      <p class="meta">{{ error }}</p>
+    } @else if (loading) {
+      <p class="meta">Loading match summary...</p>
+      <p class="meta">
+        API:
+        <a class="api-link" [href]="requestUrl" target="_blank" rel="noopener">Open ESPN summary</a>
+      </p>
+    } @else if (!summary) {
+      <p class="meta">No match summary available.</p>
+    } @else {
+      <article class="match-header">
+        <div>
+          <h3>{{ summary.awayTeam ?? 'Away' }} vs {{ summary.homeTeam ?? 'Home' }}</h3>
+          <p class="meta">
+            {{ summary.date | date: 'EEE d MMM' : slovakTimezone }} |
+            {{ summary.date | date: 'HH:mm' : slovakTimezone }} SK
+            @if (summary.venue) {
+              • {{ summary.venue }}
+            }
+          </p>
+          <p class="meta">{{ summary.detail ?? summary.status ?? '' }}</p>
+        </div>
+        <div class="score">
+          <span>{{ summary.awayScore ?? '-' }}</span>
+          <span>:</span>
+          <span>{{ summary.homeScore ?? '-' }}</span>
+        </div>
+      </article>
+
+      @if (summary.teamStats.length) {
+        <details class="widget-block collapsible" open>
+          <summary class="collapse-head">
+            <h3 class="section-title">Team Stats</h3>
+            <span class="section-chip">{{ summary.teamStats.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            <div class="stats">
+              @for (stat of summary.teamStats; track stat.name) {
+                <div class="stat-row">
+                  <span class="stat-val">{{ stat.home ?? '-' }}</span>
+                  <span class="stat-name">{{ stat.name }}</span>
+                  <span class="stat-val">{{ stat.away ?? '-' }}</span>
+                </div>
+              }
+            </div>
+          </div>
+        </details>
+      }
+
+      @if (summary.lineups.length) {
+        <details class="widget-block collapsible" open>
+          <summary class="collapse-head">
+            <h3 class="section-title">Lineups</h3>
+            <span class="section-chip">{{ summary.lineups.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            <div class="lineups">
+              @for (team of summary.lineups; track team.teamName) {
+                <section class="lineup-card">
+                  <header class="lineup-head">
+                    <strong>{{ team.teamName }}</strong>
+                    @if (team.formation) {
+                      <span class="meta">{{ team.formation }}</span>
+                    }
+                  </header>
+                  <div class="lineup-list">
+                    <p class="meta"><b>Starters</b></p>
+                    @if (!team.starters.length) {
+                      <p class="meta">N/A</p>
+                    } @else {
+                      <ul>
+                        @for (p of team.starters; track p.name) {
+                          <li>
+                            <span>{{ p.jersey ? p.jersey + ' ' : '' }}{{ p.name }}</span>
+                            <span class="meta">{{ p.position ?? '' }}</span>
+                          </li>
+                        }
+                      </ul>
+                    }
+
+                    @if (team.substitutes.length) {
+                      <p class="meta"><b>Substitutes</b></p>
+                      <ul>
+                        @for (p of team.substitutes; track p.name) {
+                          <li>
+                            <span>{{ p.jersey ? p.jersey + ' ' : '' }}{{ p.name }}</span>
+                            <span class="meta">{{ p.position ?? '' }}</span>
+                          </li>
+                        }
+                      </ul>
+                    }
+                  </div>
+                </section>
+              }
+            </div>
+          </div>
+        </details>
+      }
+
+      @if (summary.playerStats.length) {
+        <details class="widget-block collapsible">
+          <summary class="collapse-head">
+            <h3 class="section-title">Player Stats</h3>
+            <span class="section-chip">{{ summary.playerStats.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            <div class="player-stats">
+              @for (team of summary.playerStats; track trackTeamStatsTeam(team)) {
+                <section class="player-team">
+                  <h4>{{ team.teamName }}</h4>
+                  @for (category of team.categories; track category.name) {
+                    <div class="player-category">
+                      <h5>{{ category.name }}</h5>
+                      <div class="table-wrap">
+                        <table>
+                          <thead>
+                            <tr>
+                              <th>Player</th>
+                              @for (col of category.columns; track col) {
+                                <th>{{ col }}</th>
+                              }
+                            </tr>
+                          </thead>
+                          <tbody>
+                            @for (row of category.athletes; track row.athleteId ?? row.name) {
+                              <tr>
+                                <td class="player-cell">
+                                  <span>{{ row.jersey ? row.jersey + ' ' : '' }}{{ row.name }}</span>
+                                  <span class="meta">{{ row.position ?? '' }}</span>
+                                </td>
+                                @for (col of category.columns; track col) {
+                                  <td>{{ row.values[col] }}</td>
+                                }
+                              </tr>
+                            }
+                          </tbody>
+                        </table>
+                      </div>
+                    </div>
+                  }
+                </section>
+              }
+            </div>
+          </div>
+        </details>
+      }
+
+      @if (summary.officials.length) {
+        <details class="widget-block collapsible">
+          <summary class="collapse-head">
+            <h3 class="section-title">Officials</h3>
+            <span class="section-chip">{{ summary.officials.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            <ul class="simple-list">
+              @for (o of summary.officials; track o.name) {
+                <li>
+                  <span>{{ o.name }}</span>
+                  <span class="meta">{{ o.role ?? '' }}</span>
+                </li>
+              }
+            </ul>
+          </div>
+        </details>
+      }
+
+      <section class="widget-block">
+        <div class="section-head">
+          <h3 class="section-title">Raw API</h3>
+          <button type="button" class="ghost-btn" (click)="toggleRaw()">
+            {{ showRaw ? 'Hide' : 'Show' }}
+          </button>
+        </div>
+        @if (showRaw) {
+          <pre class="raw-json">{{ summary.raw | json }}</pre>
+        } @else {
+          <p class="meta">Raw JSON is hidden (can be very large).</p>
+        }
+      </section>
+    }
+  </section>
+</section>

@@ -52,7 +52,9 @@
             } @else {
               <div class="score-grid">
                 @for (game of scheduledGames; track game.id) {
-                  <article class="score-card">
+                  <a class="score-card clickable"
+                    [routerLink]="['/football/match', game.id]"
+                    [queryParams]="{ league: selectedLeague }">
                     <div class="score-head">
                       <span class="status-pill">{{ game.status }}</span>
                       <span class="meta">{{ game.detail }}</span>
@@ -71,7 +73,7 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
-                  </article>
+                  </a>
                 }
               </div>
             }
@@ -89,7 +91,9 @@
             } @else {
               <div class="score-grid">
                 @for (game of liveGames; track game.id) {
-                  <article class="score-card">
+                  <a class="score-card clickable"
+                    [routerLink]="['/football/match', game.id]"
+                    [queryParams]="{ league: selectedLeague }">
                     <div class="score-head">
                       <span class="status-pill">{{ game.status }}</span>
                       <span class="meta">{{ game.detail }}</span>
@@ -108,7 +112,7 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
-                  </article>
+                  </a>
                 }
               </div>
             }
@@ -135,7 +139,9 @@
 
                 <div class="score-grid">
                   @for (game of latestMatchdayGames; track game.id) {
-                    <article class="score-card">
+                    <a class="score-card clickable"
+                      [routerLink]="['/football/match', game.id]"
+                      [queryParams]="{ league: selectedLeague }">
                       <div class="score-head">
                         <span class="status-pill">{{ game.status }}</span>
                         <span class="meta">{{ game.detail }}</span>
@@ -154,7 +160,7 @@
                       @if (game.venue) {
                         <p class="meta">Venue: {{ game.venue }}</p>
                       }
-                    </article>
+                    </a>
                   }
                 </div>
               </div>
@@ -170,7 +176,9 @@
 
                 <div class="score-grid">
                   @for (game of olderFinishedGames; track game.id) {
-                    <article class="score-card">
+                    <a class="score-card clickable"
+                      [routerLink]="['/football/match', game.id]"
+                      [queryParams]="{ league: selectedLeague }">
                       <div class="score-head">
                         <span class="status-pill">{{ game.status }}</span>
                         <span class="meta">{{ game.detail }}</span>
@@ -189,7 +197,7 @@
                       @if (game.venue) {
                         <p class="meta">Venue: {{ game.venue }}</p>
                       }
-                    </article>
+                    </a>
                   }
                 </div>
               }
