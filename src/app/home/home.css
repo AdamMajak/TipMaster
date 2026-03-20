@@ -245,11 +245,21 @@
   border: 1px solid #314a72;
   background: #16243c;
   border-radius: 10px;
-  padding: 10px;
+  padding: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.odds-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
 }
 
 .teams {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   color: #f2f6ff;
@@ -281,6 +291,24 @@
   color: #ffcb88;
 }
 
+.mini-pill {
+  background: #203252;
+  border: 1px solid #3f5f8b;
+  color: #dce9ff;
+  padding: 4px 8px;
+  border-radius: 999px;
+  font-size: 0.74rem;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.match-insight {
+  margin: 0;
+  color: #e7efff;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
 @media (max-width: 960px) {
   .hero-card {
     grid-template-columns: 1fr;
@@ -292,5 +320,10 @@
 
   .form-row {
     grid-template-columns: 1fr;
+  }
+
+  .odds-head {
+    flex-direction: column;
+    align-items: stretch;
   }
 }

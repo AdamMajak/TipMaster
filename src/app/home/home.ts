@@ -2,8 +2,11 @@ import { DatePipe } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
+import { catchError, forkJoin, of } from 'rxjs';
 import { AnalysisService, UserAnalysis } from '../shared/analysis.service';
 import { OddsEvent, OddsService } from '../shared/odds.service';
+import { ESPN_SOCCER_LEAGUES } from '../shared/espn-soccer-leagues';
+import { EspnSoccerService, SoccerGame } from '../shared/espn-soccer.service';
 import { SPORT_KEYS } from '../shared/rapidapi-odds';
 
 interface HomeMatch {
@@ -11,8 +14,10 @@ interface HomeMatch {
   kickoff: string;
   homeTeam: string;
   awayTeam: string;
-  bookmaker: string;
-  odds: Array<{ name: string; price: number }>;
+  competition: string;
+  venue?: string;
+  insight: string;
+  confidence?: number;
 }
 
 interface AnalysisCard {
@@ -33,6 +38,10 @@ interface AnalysisCard {
   styleUrl: './home.css',
 })
 export class Home implements OnInit {
+  private readonly staleWindowMs = 2 * 60 * 60 * 1000;
+  private readonly featuredWindowMs = 36 * 60 * 60 * 1000;
+  private readonly featuredLeagues = ['eng.1', 'esp.1', 'ger.1', 'ita.1', 'uefa.champions'];
+
   loading = true;
   error = '';
   sportsCount = 0;
@@ -53,7 +62,8 @@ export class Home implements OnInit {
 
   constructor(
     private readonly oddsService: OddsService,
-    private readonly analysisService: AnalysisService
+    private readonly analysisService: AnalysisService,
+    private readonly soccerService: EspnSoccerService
   ) {}
 
   ngOnInit(): void {
@@ -75,14 +85,25 @@ export class Home implements OnInit {
       },
     });
 
-    this.oddsService.getOddsBySport(SPORT_KEYS.football).subscribe({
-      next: (football) => {
-        this.footballMatches = football.slice(0, 8).map((event) => this.toHomeMatch(event));
+    forkJoin(
+      this.featuredLeagues.map((league) =>
+        this.soccerService.getScoreboard(league).pipe(catchError(() => of([])))
+      )
+    ).subscribe({
+      next: (responses) => {
+        this.footballMatches = responses
+          .flatMap((games, index) =>
+            games
+              .filter((game) => this.isScheduledEspnGame(game) && this.isFeaturedMatch(game.date))
+              .map((game) => this.toEspnHomeMatch(game, this.featuredLeagues[index]))
+          )
+          .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime())
+          .slice(0, 8);
         this.refreshTodayMatches();
         this.loading = false;
       },
       error: (err) => {
-        this.error = err?.message ?? 'Failed to load odds data.';
+        this.error = err?.message ?? 'Failed to load ESPN football data.';
         this.loading = false;
       },
     });
@@ -151,24 +172,15 @@ export class Home implements OnInit {
   }
 
   private buildAutoAnalysis(match: HomeMatch): AnalysisCard {
-    const sorted = [...match.odds].sort((a, b) => a.price - b.price);
-    const favorite = sorted[0];
-    const outsider = sorted[sorted.length - 1];
-    const pick = favorite?.name;
-
-    const summary = favorite
-      ? `Favorit ma nizky kurz ${favorite.price}. Pre hodnotu sleduj outsidera ${outsider?.name ?? ''} nad ${outsider?.price ?? ''}.`
-      : 'Kurzy su zatial nejasne, sleduj pohyb trhu pocas dna.';
-
     return {
       id: `auto-${match.id}`,
       type: 'auto',
       title: `Rychla analyza: ${match.homeTeam} vs ${match.awayTeam}`,
       matchLabel: `${match.homeTeam} vs ${match.awayTeam}`,
       kickoff: match.kickoff,
-      summary,
-      pick,
-      confidence: favorite ? 3 : 2,
+      summary: match.insight,
+      pick: match.competition,
+      confidence: match.confidence ?? 2,
     };
   }
 
@@ -189,22 +201,40 @@ export class Home implements OnInit {
 
   private toHomeMatch(event: OddsEvent): HomeMatch {
     const fallbackBookmaker = { title: 'N/A', markets: [{ outcomes: [] as Array<{ name: string; price: number }> }] };
-    const bookmaker = event.bookmakers?.find((b) => b.markets?.some((m) => m.key === 'h2h')) ?? event.bookmakers?.[0] ?? fallbackBookmaker;
-    const h2h = bookmaker.markets?.find((m) => m.key === 'h2h') ?? bookmaker.markets?.[0];
+    const bookmaker =
+      event.bookmakers?.find((b) => b.markets?.some((m) => m.key === 'h2h')) ?? event.bookmakers?.[0] ?? fallbackBookmaker;
 
     return {
       id: event.id,
       kickoff: event.commence_time,
       homeTeam: event.home_team,
       awayTeam: event.away_team,
-      bookmaker: bookmaker.title,
-      odds: (h2h?.outcomes ?? []).slice(0, 3),
+      competition: bookmaker.title,
+      insight: 'Zapasy z odds feedu ostavaju dostupne v ostatnych sekciach aplikacie.',
+      confidence: 2,
+    };
+  }
+
+  private toEspnHomeMatch(game: SoccerGame, leagueId: string): HomeMatch {
+    const competition = ESPN_SOCCER_LEAGUES.find((league) => league.id === leagueId)?.label ?? leagueId;
+
+    return {
+      id: `${leagueId}-${game.id}`,
+      kickoff: game.date,
+      homeTeam: game.homeTeam,
+      awayTeam: game.awayTeam,
+      competition,
+      venue: game.venue,
+      insight: this.buildEspnMatchInsight(game, competition),
+      confidence: this.getEspnConfidenceRating(game),
     };
   }
 
   private refreshTodayMatches(): void {
     const all = this.mergeMatches(this.footballMatches, this.todayMatches);
-    this.todayMatches = all.filter((match) => this.isToday(match.kickoff));
+    this.todayMatches = all
+      .filter((match) => this.isToday(match.kickoff) && this.isFreshMatch(match.kickoff))
+      .sort((a, b) => new Date(a.kickoff).getTime() - new Date(b.kickoff).getTime());
     this.autoAnalyses = this.todayMatches.map((match) => this.buildAutoAnalysis(match));
   }
 
@@ -217,5 +247,108 @@ export class Home implements OnInit {
       }
     }
     return merged;
+  }
+
+  private isFreshMatch(isoDate: string): boolean {
+    return new Date(isoDate).getTime() >= Date.now() - this.staleWindowMs;
+  }
+
+  private isFeaturedMatch(isoDate: string): boolean {
+    const kickoff = new Date(isoDate).getTime();
+    const now = Date.now();
+    return kickoff >= now - this.staleWindowMs && kickoff <= now + this.featuredWindowMs;
+  }
+
+  private buildMatchInsight(odds: Array<{ name: string; price: number }>): string {
+    const sorted = [...odds].sort((a, b) => a.price - b.price);
+    const favorite = sorted[0];
+    const second = sorted[1];
+    const outsider = sorted[sorted.length - 1];
+
+    if (!favorite) {
+      return 'Kurzovy trh este nema jasneho favorita, oplati sa pockat na dalsi pohyb cien.';
+    }
+
+    if (!second) {
+      return `Najsilnejsie vyzera tip ${favorite.name} s kurzom ${favorite.price}.`;
+    }
+
+    const gap = Number((second.price - favorite.price).toFixed(2));
+    if (gap >= 0.6) {
+      return `Trh jasne veri moznosti ${favorite.name} (${favorite.price}). Outsider ${outsider?.name ?? '-'} je uz vysoko na ${outsider?.price ?? '-'}.`;
+    }
+
+    if (favorite.name === 'X' || gap <= 0.25) {
+      return `Kurzy su tesne pri sebe, zapas vyzera vyrovnane a remizovy scenar zostava silny.`;
+    }
+
+    return `Mierny kurzovy naskok ma ${favorite.name} (${favorite.price}), ale trh nechava priestor aj pre alternativu ${second.name} (${second.price}).`;
+  }
+
+  private getConfidenceRating(odds: Array<{ name: string; price: number }>): number {
+    const sorted = [...odds].sort((a, b) => a.price - b.price);
+    const favorite = sorted[0];
+    const second = sorted[1];
+
+    if (!favorite || !second) {
+      return 2;
+    }
+
+    const gap = second.price - favorite.price;
+    if (gap >= 0.9) {
+      return 5;
+    }
+    if (gap >= 0.6) {
+      return 4;
+    }
+    if (gap >= 0.3) {
+      return 3;
+    }
+    return 2;
+  }
+
+  private isScheduledEspnGame(game: SoccerGame): boolean {
+    if (this.isFutureDate(game.date)) {
+      return true;
+    }
+
+    if (game.state?.toLowerCase() === 'pre') {
+      return true;
+    }
+
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('scheduled') || normalized.includes('pre');
+  }
+
+  private isFutureDate(value: string): boolean {
+    return new Date(value).getTime() > Date.now();
+  }
+
+  private buildEspnMatchInsight(game: SoccerGame, competition: string): string {
+    const kickoff = new Date(game.date).getTime();
+    const hoursUntilKickoff = Math.max(0, Math.round((kickoff - Date.now()) / (60 * 60 * 1000)));
+
+    if (hoursUntilKickoff <= 6) {
+      return `${competition} sa hra uz coskoro, takze toto je dobry kandidat na rychly prematch check zostav a formy tesne pred vykopom.`;
+    }
+
+    if (game.venue) {
+      return `${competition} ponuka zaujimavy upcoming duel. Sleduj potvrdene zostavy a domace prostredie na stadione ${game.venue}.`;
+    }
+
+    return `${competition} ponuka upcoming zapas vhodny na dalsiu analyzu po zverejneni zostav a timovych noviniek.`;
+  }
+
+  private getEspnConfidenceRating(game: SoccerGame): number {
+    const kickoff = new Date(game.date).getTime();
+    const hoursUntilKickoff = Math.round((kickoff - Date.now()) / (60 * 60 * 1000));
+
+    if (hoursUntilKickoff <= 3) {
+      return 4;
+    }
+    if (hoursUntilKickoff <= 12) {
+      return 3;
+    }
+    return 2;
   }
 }

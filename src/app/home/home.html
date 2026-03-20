@@ -31,25 +31,34 @@
     </section>
   } @else {
     <section class="widget-panel">
-      <h3>Featured Football Events</h3>
+      <header class="analysis-header">
+        <div>
+          <h3>Featured Football Events</h3>
+          <p class="lead">Upcoming ESPN fixtures from major competitions with a quick preview.</p>
+        </div>
+        <span class="pill">Football</span>
+      </header>
       @if (loading) {
-        <p class="lead">Loading live odds...</p>
+        <p class="lead">Loading upcoming ESPN matches...</p>
       } @else if (!footballMatches.length) {
-        <p class="lead">No football events are available right now.</p>
+        <p class="lead">No fresh football events are available right now.</p>
       } @else {
         <div class="odds-list">
           @for (match of footballMatches; track match.id) {
             <article class="odds-item">
-              <div class="teams">
-                <strong>{{ match.homeTeam }}</strong>
-                <span>vs</span>
-                <strong>{{ match.awayTeam }}</strong>
+              <div class="odds-head">
+                <div class="teams">
+                  <strong>{{ match.homeTeam }}</strong>
+                  <span>vs</span>
+                  <strong>{{ match.awayTeam }}</strong>
+                </div>
+                <span class="mini-pill">{{ match.competition }}</span>
               </div>
-              <p>{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} | {{ match.bookmaker }}</p>
-              <div class="prices">
-                @for (odd of match.odds; track odd.name) {
-                  <span>{{ odd.name }} <b>{{ odd.price }}</b></span>
-                }
+              <p>{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} @if (match.venue) { | {{ match.venue }} }</p>
+              <p class="match-insight">{{ match.insight }}</p>
+              <div class="analysis-footer">
+                <span>League: <b>{{ match.competition }}</b></span>
+                <span>Confidence: <b>{{ match.confidence || '-' }}/5</b></span>
               </div>
             </article>
           }
