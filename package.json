@@ -3,7 +3,7 @@
   "version": "0.0.0",
   "scripts": {
     "ng": "ng",
-    "start": "ng serve",
+    "start": "ng serve --proxy-config proxy.conf.json",
     "build": "ng build",
     "deploy:hosting": "npm run build && firebase deploy --only hosting",
     "watch": "ng build --watch --configuration development",

@@ -1,11 +1,11 @@
 <section class="sport-page">
   <header class="sport-hero">
     <div>
-      <p class="sport-tag">FOOTBALL</p>
-      <h2>Match Detail</h2>
+      <p class="sport-tag">HOCKEY</p>
+      <h2>Game Detail</h2>
       <p class="meta">League: {{ league }} • Event: {{ eventId }}</p>
     </div>
-    <a class="sport-status" [routerLink]="['/football']">Back to Football</a>
+    <a class="sport-status" [routerLink]="['/hockey']">Back to Hockey</a>
   </header>
 
   <section class="widget-block">
@@ -18,7 +18,7 @@
         <button type="button" class="ghost-btn" (click)="loadDetails()">Try again</button>
       </div>
     } @else if (loading) {
-      <p class="meta">Loading match summary...</p>
+      <p class="meta">Loading game summary...</p>
     } @else if (!summary) {
       <div class="section-head">
         <p class="meta">
@@ -69,65 +69,15 @@
         </details>
       }
 
-      @if (summary.lineups.length) {
-        <details class="widget-block collapsible" open>
-          <summary class="collapse-head">
-            <h3 class="section-title">Lineups</h3>
-            <span class="section-chip">{{ summary.lineups.length }}</span>
-          </summary>
-          <div class="collapse-body">
-            <div class="lineups">
-              @for (team of summary.lineups; track team.teamName) {
-                <section class="lineup-card">
-                  <header class="lineup-head">
-                    <strong>{{ team.teamName }}</strong>
-                    @if (team.formation) {
-                      <span class="meta">{{ team.formation }}</span>
-                    }
-                  </header>
-                  <div class="lineup-list">
-                    <p class="meta"><b>Starters</b></p>
-                    @if (!team.starters.length) {
-                      <p class="meta">N/A</p>
-                    } @else {
-                      <ul>
-                        @for (p of team.starters; track p.name) {
-                          <li>
-                            <span>{{ p.jersey ? p.jersey + ' ' : '' }}{{ p.name }}</span>
-                            <span class="meta">{{ p.position ?? '' }}</span>
-                          </li>
-                        }
-                      </ul>
-                    }
-
-                    @if (team.substitutes.length) {
-                      <p class="meta"><b>Substitutes</b></p>
-                      <ul>
-                        @for (p of team.substitutes; track p.name) {
-                          <li>
-                            <span>{{ p.jersey ? p.jersey + ' ' : '' }}{{ p.name }}</span>
-                            <span class="meta">{{ p.position ?? '' }}</span>
-                          </li>
-                        }
-                      </ul>
-                    }
-                  </div>
-                </section>
-              }
-            </div>
-          </div>
-        </details>
-      }
-
       @if (summary.playerStats.length) {
-        <details class="widget-block collapsible">
+        <details class="widget-block collapsible" open>
           <summary class="collapse-head">
             <h3 class="section-title">Player Stats</h3>
             <span class="section-chip">{{ summary.playerStats.length }}</span>
           </summary>
           <div class="collapse-body">
             <div class="player-stats">
-              @for (team of summary.playerStats; track trackTeamStatsTeam(team)) {
+              @for (team of summary.playerStats; track trackTeam(team)) {
                 <section class="player-team">
                   <h4>{{ team.teamName }}</h4>
                   @for (category of team.categories; track category.name) {

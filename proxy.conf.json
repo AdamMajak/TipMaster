@@ -1,0 +1,12 @@
+{
+  "/espn": {
+    "target": "https://site.api.espn.com",
+    "secure": true,
+    "changeOrigin": true,
+    "logLevel": "warn",
+    "pathRewrite": {
+      "^/espn": ""
+    }
+  }
+}
+

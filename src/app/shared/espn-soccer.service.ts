@@ -147,20 +147,23 @@ export class EspnSoccerService {
   }
 
   getMatchSummary(league: string, eventId: string): Observable<SoccerMatchSummary | null> {
+    // NOTE: ESPN "summary" endpoint often fails CORS. We route it through the local dev proxy (/espn -> site.api.espn.com).
+    // This keeps scoreboard/news/teams direct, but match details reliable during development.
+    const base = `/espn/apis/site/v2/sports/soccer/${encodeURIComponent(league)}`;
     return this.http
-      .get<any>(`${ESPN_SOCCER_BASE_URL}/${league}/summary?event=${encodeURIComponent(eventId)}`)
+      .get<any>(`${base}/summary?event=${encodeURIComponent(eventId)}`)
       .pipe(
         timeout(12000),
         map((data) => this.mapMatchSummary(eventId, data)),
         catchError((err) => {
           const status = typeof err?.status === 'number' ? err.status : undefined;
-          const url = err?.url ?? `${ESPN_SOCCER_BASE_URL}/${league}/summary?event=${eventId}`;
+          const url = err?.url ?? `${base}/summary?event=${eventId}`;
           const message =
             err?.error?.message ??
             err?.message ??
             'Request failed.';
 
-          const details = `${status ? `status=${status}` : 'status=?'} url=${url}`;
+          const details = `${status === undefined ? 'status=?' : `status=${status}`} url=${url}`;
           return throwError(() => new Error(`ESPN match summary failed (${details}): ${message}`));
         })
       );

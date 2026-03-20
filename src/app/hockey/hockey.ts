@@ -1,5 +1,6 @@
 import { DatePipe } from '@angular/common';
 import { Component, OnInit } from '@angular/core';
+import { FormsModule } from '@angular/forms';
 import {
   EspnHockeyService,
   HockeyGame,
@@ -7,17 +8,22 @@ import {
   HockeyTeam,
   HockeyTeamDetail,
 } from '../shared/espn-hockey.service';
+import { RouterLink } from '@angular/router';
+import { ESPN_HOCKEY_LEAGUES, HockeyLeagueOption } from '../shared/espn-hockey-leagues';
 
 @Component({
   selector: 'app-hockey',
-  imports: [DatePipe],
+  imports: [DatePipe, RouterLink, FormsModule],
   templateUrl: './hockey.html',
   styleUrl: './hockey.css',
 })
 export class Hockey implements OnInit {
   readonly pageTitle = 'Hockey Events';
-  readonly subtitle = 'Live NHL scores, news, and team data from ESPN APIs.';
+  readonly subtitle = 'Live scores, news, and teams from ESPN hockey APIs.';
   readonly slovakTimezone = 'Europe/Bratislava';
+
+  readonly leagues: HockeyLeagueOption[] = ESPN_HOCKEY_LEAGUES;
+  selectedLeague = this.leagues[0]?.id ?? 'nhl';
 
   loadingScores = true;
   loadingNews = true;
@@ -38,7 +44,17 @@ export class Hockey implements OnInit {
   constructor(private readonly hockeyService: EspnHockeyService) {}
 
   ngOnInit(): void {
-    this.hockeyService.getScoreboard().subscribe({
+    this.reloadLeague();
+  }
+
+  onLeagueChange(): void {
+    this.reloadLeague();
+  }
+
+  private reloadLeague(): void {
+    this.resetLeagueState();
+
+    this.hockeyService.getScoreboard(this.selectedLeague).subscribe({
       next: (games) => {
         this.games = games;
         this.loadingScores = false;
@@ -49,7 +65,7 @@ export class Hockey implements OnInit {
       },
     });
 
-    this.hockeyService.getNews().subscribe({
+    this.hockeyService.getNews(this.selectedLeague).subscribe({
       next: (news) => {
         this.news = news;
         this.loadingNews = false;
@@ -60,7 +76,7 @@ export class Hockey implements OnInit {
       },
     });
 
-    this.hockeyService.getTeams().subscribe({
+    this.hockeyService.getTeams(this.selectedLeague).subscribe({
       next: (teams) => {
         this.teams = teams;
         this.loadingTeams = false;
@@ -99,7 +115,7 @@ export class Hockey implements OnInit {
   private loadTeamDetail(teamId: string): void {
     this.loadingTeam = true;
     this.errorTeam = '';
-    this.hockeyService.getTeam(teamId).subscribe({
+    this.hockeyService.getTeam(this.selectedLeague, teamId).subscribe({
       next: (detail) => {
         this.teamDetail = detail;
         this.loadingTeam = false;
@@ -109,6 +125,24 @@ export class Hockey implements OnInit {
         this.loadingTeam = false;
       },
     });
+  }
+
+  private resetLeagueState(): void {
+    this.loadingScores = true;
+    this.loadingNews = true;
+    this.loadingTeams = true;
+    this.loadingTeam = false;
+
+    this.errorScores = '';
+    this.errorNews = '';
+    this.errorTeams = '';
+    this.errorTeam = '';
+
+    this.games = [];
+    this.news = [];
+    this.teams = [];
+    this.selectedTeam = null;
+    this.teamDetail = null;
   }
 
   private isScheduledGame(game: HockeyGame): boolean {

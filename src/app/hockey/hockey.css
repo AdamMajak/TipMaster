@@ -119,6 +119,16 @@
   border: 1px solid #2d4a78;
 }
 
+.league-select select {
+  border-radius: 10px;
+  border: 1px solid #3f5f8b;
+  background: #203252;
+  color: #e3eeff;
+  padding: 8px 12px;
+  font-size: 0.9rem;
+  min-width: 220px;
+}
+
 .meta {
   margin: 0;
   color: #98afd5;
@@ -165,6 +175,19 @@
 .score-card {
   display: grid;
   gap: 10px;
+}
+
+.score-card.clickable {
+  cursor: pointer;
+  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+  touch-action: manipulation;
+  display: block;
+  text-decoration: none;
+}
+
+.score-card.clickable:hover {
+  border-color: #4b73ab;
+  transform: translateY(-1px);
 }
 
 .score-head {

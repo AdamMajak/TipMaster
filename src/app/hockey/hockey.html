@@ -8,6 +8,22 @@
     <span class="sport-status">NHL live feed</span>
   </header>
 
+  <section class="widget-block">
+    <div class="section-head">
+      <div>
+        <h3 class="section-title">League</h3>
+        <p class="meta">Vyber ligu (NHL, college, olympics...).</p>
+      </div>
+      <div class="league-select">
+        <select [(ngModel)]="selectedLeague" (change)="onLeagueChange()">
+          @for (league of leagues; track league.id) {
+            <option [value]="league.id">{{ league.label }}</option>
+          }
+        </select>
+      </div>
+    </div>
+  </section>
+
   <details class="widget-block collapsible" open>
     <summary class="collapse-head">
       <div>
@@ -36,7 +52,9 @@
             } @else {
               <div class="score-grid">
                 @for (game of scheduledGames; track game.id) {
-                  <article class="score-card">
+                  <a class="score-card clickable"
+                    [routerLink]="['/hockey/match', game.id]"
+                    [queryParams]="{ league: selectedLeague }">
                     <div class="score-head">
                       <span class="status-pill">{{ game.status }}</span>
                       <span class="meta">{{ game.detail }}</span>
@@ -55,7 +73,7 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
-                  </article>
+                  </a>
                 }
               </div>
             }
@@ -73,7 +91,9 @@
             } @else {
               <div class="score-grid">
                 @for (game of liveGames; track game.id) {
-                  <article class="score-card">
+                  <a class="score-card clickable"
+                    [routerLink]="['/hockey/match', game.id]"
+                    [queryParams]="{ league: selectedLeague }">
                     <div class="score-head">
                       <span class="status-pill">{{ game.status }}</span>
                       <span class="meta">{{ game.detail }}</span>
@@ -92,7 +112,7 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
-                  </article>
+                  </a>
                 }
               </div>
             }
@@ -110,7 +130,9 @@
             } @else {
               <div class="score-grid">
                 @for (game of finishedGames; track game.id) {
-                  <article class="score-card">
+                  <a class="score-card clickable"
+                    [routerLink]="['/hockey/match', game.id]"
+                    [queryParams]="{ league: selectedLeague }">
                     <div class="score-head">
                       <span class="status-pill">{{ game.status }}</span>
                       <span class="meta">{{ game.detail }}</span>
@@ -129,7 +151,7 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
-                  </article>
+                  </a>
                 }
               </div>
             }
