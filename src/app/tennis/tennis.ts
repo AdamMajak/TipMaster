@@ -1,7 +1,8 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { EspnTennisLeague, EspnTennisService, TennisGame, TennisNewsItem } from '../shared/espn-tennis.service';
+import { EspnTennisLeague, EspnTennisService, TennisGame, TennisNewsItem, TennisOddsOutcome } from '../shared/espn-tennis.service';
+import { BetSlipService } from '../shared/betslip.service';
 
 interface TennisLeagueOption {
   id: EspnTennisLeague;
@@ -15,6 +16,8 @@ interface TennisLeagueOption {
   styleUrl: './tennis.css',
 })
 export class Tennis implements OnInit {
+  private readonly betSlipService = inject(BetSlipService);
+
   readonly pageTitle = 'Tennis Events';
   readonly subtitle = 'ATP / WTA scoreboard and news from ESPN APIs.';
   readonly slovakTimezone = 'Europe/Bratislava';
@@ -54,6 +57,22 @@ export class Tennis implements OnInit {
 
   get finishedGames(): TennisGame[] {
     return this.games.filter((game) => this.isFinishedGame(game));
+  }
+
+  toggleSelection(game: TennisGame, odd: TennisOddsOutcome): void {
+    this.betSlipService.toggleSelection({
+      eventId: `tennis-${this.selectedLeague}-${game.id}`,
+      sport: `Tennis (${this.selectedLeague.toUpperCase()})`,
+      homeTeam: game.playerA,
+      awayTeam: game.playerB,
+      kickoff: game.date,
+      market: odd.name,
+      odds: odd.price,
+    });
+  }
+
+  isSelected(game: TennisGame, odd: TennisOddsOutcome): boolean {
+    return this.betSlipService.isSelected(`tennis-${this.selectedLeague}-${game.id}`, odd.name);
   }
 
   private reloadLeague(): void {

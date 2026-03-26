@@ -18,6 +18,12 @@ export interface TennisGame {
   tournament?: string;
   round?: string;
   venue?: string;
+  odds: TennisOddsOutcome[];
+}
+
+export interface TennisOddsOutcome {
+  name: string;
+  price: number;
 }
 
 export interface TennisNewsItem {
@@ -31,6 +37,42 @@ export interface TennisNewsItem {
 }
 
 const ESPN_TENNIS_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/tennis';
+const DEFAULT_TENNIS_PLAYER_RATING = 74;
+const TENNIS_BOOK_MARGIN = 1.05;
+
+const ATP_PLAYER_RATINGS: Record<string, number> = {
+  'jannik sinner': 99,
+  'carlos alcaraz': 98,
+  'novak djokovic': 95,
+  'daniil medvedev': 92,
+  'alexander zverev': 91,
+  'andrey rublev': 87,
+  'stefanos tsitsipas': 86,
+  'hubert hurkacz': 86,
+  'casper ruud': 85,
+  'taylor fritz': 85,
+  'grigor dimitrov': 83,
+  'tommy paul': 82,
+  'holger rune': 82,
+  'alex de minaur': 84,
+};
+
+const WTA_PLAYER_RATINGS: Record<string, number> = {
+  'aryna sabalenka': 98,
+  'iga swiatek': 97,
+  'coco gauff': 92,
+  'elena rybakina': 92,
+  'jessica pegula': 88,
+  'qinwen zheng': 87,
+  'ons jabeur': 84,
+  'marketa vondrousova': 83,
+  'jasmine paolini': 86,
+  'danielle collins': 84,
+  'emma navarro': 83,
+  'mirra andreeva': 84,
+  'madison keys': 85,
+  'naomi osaka': 82,
+};
 
 @Injectable({ providedIn: 'root' })
 export class EspnTennisService {
@@ -40,7 +82,7 @@ export class EspnTennisService {
     const dates = this.buildScoreboardRange();
     return this.http
       .get<any>(`${ESPN_TENNIS_BASE_URL}/${league}/scoreboard?dates=${dates}`)
-      .pipe(map((data) => this.mapScoreboard(data)));
+      .pipe(map((data) => this.mapScoreboard(data, league)));
   }
 
   getNews(league: EspnTennisLeague): Observable<TennisNewsItem[]> {
@@ -49,7 +91,7 @@ export class EspnTennisService {
       .pipe(map((data) => this.mapNews(data)));
   }
 
-  private mapScoreboard(data: any): TennisGame[] {
+  private mapScoreboard(data: any, league: EspnTennisLeague): TennisGame[] {
     const events = data?.events ?? [];
 
     return events
@@ -92,9 +134,47 @@ export class EspnTennisService {
           tournament,
           round,
           venue,
+          odds: this.buildMatchOdds(playerA, playerB, league),
         } satisfies TennisGame;
       })
       .filter((game: TennisGame) => Boolean(game.id));
+  }
+
+  private buildMatchOdds(playerA: string, playerB: string, league: EspnTennisLeague): TennisOddsOutcome[] {
+    const ratings = league === 'wta' ? WTA_PLAYER_RATINGS : ATP_PLAYER_RATINGS;
+    const ratingA = this.resolvePlayerRating(playerA, ratings);
+    const ratingB = this.resolvePlayerRating(playerB, ratings);
+    const probabilityA = 1 / (1 + Math.exp(-(ratingA - ratingB) / 7));
+    const probabilityB = 1 - probabilityA;
+
+    return [
+      { name: '2', price: this.toDecimalOdds(probabilityA) },
+      { name: '1', price: this.toDecimalOdds(probabilityB) },
+    ];
+  }
+
+  private resolvePlayerRating(playerName: string, ratings: Record<string, number>): number {
+    const normalized = this.normalizeName(playerName);
+    return ratings[normalized] ?? DEFAULT_TENNIS_PLAYER_RATING;
+  }
+
+  private normalizeName(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9/ ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private toDecimalOdds(probability: number): number {
+    const safeProbability = this.clamp(probability, 0.12, 0.88);
+    return Math.round((1 / (safeProbability * TENNIS_BOOK_MARGIN)) * 100) / 100;
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
   }
 
   private formatStatusLabel(statusType: any, fallback: string): string {

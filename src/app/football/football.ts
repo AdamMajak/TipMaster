@@ -1,15 +1,17 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import {
   EspnSoccerService,
   SoccerGame,
   SoccerNewsItem,
+  SoccerOddsOutcome,
   SoccerTeam,
   SoccerTeamDetail,
 } from '../shared/espn-soccer.service';
 import { ESPN_SOCCER_LEAGUES, SoccerLeagueOption } from '../shared/espn-soccer-leagues';
+import { BetSlipService } from '../shared/betslip.service';
 
 @Component({
   selector: 'app-football',
@@ -18,6 +20,8 @@ import { ESPN_SOCCER_LEAGUES, SoccerLeagueOption } from '../shared/espn-soccer-l
   styleUrls: ['./football.css'],
 })
 export class Football implements OnInit {
+  private readonly betSlipService = inject(BetSlipService);
+
   readonly pageTitle = 'Football Events';
   readonly subtitle = 'Live soccer scores, news, and teams from ESPN APIs.';
   readonly slovakTimezone = 'Europe/Bratislava';
@@ -87,6 +91,22 @@ export class Football implements OnInit {
   get olderFinishedGames(): SoccerGame[] {
     const latestIds = new Set(this.latestMatchdayGames.map((game) => game.id));
     return this.finishedGames.filter((game) => !latestIds.has(game.id));
+  }
+
+  toggleSelection(game: SoccerGame, odd: SoccerOddsOutcome): void {
+    this.betSlipService.toggleSelection({
+      eventId: `football-${this.selectedLeague}-${game.id}`,
+      sport: `Football (${this.selectedLeague})`,
+      homeTeam: game.homeTeam,
+      awayTeam: game.awayTeam,
+      kickoff: game.date,
+      market: odd.name,
+      odds: odd.price,
+    });
+  }
+
+  isSelected(game: SoccerGame, odd: SoccerOddsOutcome): boolean {
+    return this.betSlipService.isSelected(`football-${this.selectedLeague}-${game.id}`, odd.name);
   }
 
   selectTeam(team: SoccerTeam | null): void {

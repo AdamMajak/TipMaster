@@ -202,27 +202,70 @@
   cursor: pointer;
 }
 
-.analysis-form {
-  display: grid;
-  gap: 10px;
+.analysis-form,.rating-form { display: grid; gap: 10px; }
+
+.analysis-form input,.analysis-form select,.analysis-form textarea,.rating-form select,.rating-form textarea {
+  background: #0f1a2e; border: 1px solid #2a4063; color: #e6f0ff; border-radius: 8px; padding: 8px; font-size: 0.9rem;
 }
 
-.analysis-form label {
-  display: grid;
-  gap: 6px;
-  color: #d7e5ff;
-  font-size: 0.85rem;
+.match-picker {
+  display: grid; gap: 8px; max-height: 240px; overflow: auto; padding: 8px; background: #0f1a2e; border: 1px solid #2a4063; border-radius: 8px;
 }
 
-.analysis-form input,
-.analysis-form select,
-.analysis-form textarea {
-  background: #0f1a2e;
-  border: 1px solid #2a4063;
+.match-picker-tools {
+  display: grid; gap: 8px; grid-template-columns: 180px 1fr;
+}
+
+.match-picker-tools select,
+.match-picker-tools input {
+  background: #0f1a2e; border: 1px solid #2a4063; color: #e6f0ff; border-radius: 8px; padding: 8px; font-size: 0.9rem;
+}
+
+.match-option {
+  display: grid; grid-template-columns: auto 1fr; gap: 4px 8px; align-items: start; padding: 6px 4px; border-bottom: 1px solid #1f3250;
+}
+
+.match-option:last-child {
+  border-bottom: 0;
+}
+
+.match-option input {
+  margin-top: 2px;
+}
+
+.match-option span {
   color: #e6f0ff;
-  border-radius: 8px;
-  padding: 8px;
-  font-size: 0.9rem;
+}
+
+.match-option small {
+  grid-column: 2;
+  color: #98afd5;
+}
+
+.rating-form {
+  margin-top: 6px; padding-top: 10px; border-top: 1px solid #2a4063;
+}
+
+.analysis-form label,.rating-form label { display: grid; gap: 6px; color: #d7e5ff; font-size: 0.85rem; }
+
+.rating-list {
+  display: grid; gap: 8px;
+}
+
+.rating-card {
+  background: #101b2f; border: 1px solid #28405f; border-radius: 10px; padding: 10px; display: grid; gap: 6px;
+}
+
+.rating-card p {
+  margin: 0; color: #d9e7ff; font-size: 0.85rem; line-height: 1.4;
+}
+
+.rating-head {
+  display: flex; justify-content: space-between; gap: 8px; align-items: center; color: #f2f6ff; font-size: 0.84rem;
+}
+
+.rating-head span {
+  color: #ffcb88; font-size: 0.78rem;
 }
 
 .form-row {
@@ -319,6 +362,10 @@
   }
 
   .form-row {
+    grid-template-columns: 1fr;
+  }
+
+  .match-picker-tools {
     grid-template-columns: 1fr;
   }
 

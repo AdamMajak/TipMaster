@@ -1,15 +1,17 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit } from '@angular/core';
+import { Component, OnInit, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import {
   EspnHockeyService,
   HockeyGame,
   HockeyNewsItem,
+  HockeyOddsOutcome,
   HockeyTeam,
   HockeyTeamDetail,
 } from '../shared/espn-hockey.service';
 import { RouterLink } from '@angular/router';
 import { ESPN_HOCKEY_LEAGUES, HockeyLeagueOption } from '../shared/espn-hockey-leagues';
+import { BetSlipService } from '../shared/betslip.service';
 
 @Component({
   selector: 'app-hockey',
@@ -18,6 +20,8 @@ import { ESPN_HOCKEY_LEAGUES, HockeyLeagueOption } from '../shared/espn-hockey-l
   styleUrl: './hockey.css',
 })
 export class Hockey implements OnInit {
+  private readonly betSlipService = inject(BetSlipService);
+
   readonly pageTitle = 'Hockey Events';
   readonly subtitle = 'Live scores, news, and teams from ESPN hockey APIs.';
   readonly slovakTimezone = 'Europe/Bratislava';
@@ -110,6 +114,22 @@ export class Hockey implements OnInit {
 
   get finishedGames(): HockeyGame[] {
     return this.games.filter((game) => this.isFinishedGame(game));
+  }
+
+  toggleSelection(game: HockeyGame, odd: HockeyOddsOutcome): void {
+    this.betSlipService.toggleSelection({
+      eventId: `hockey-${this.selectedLeague}-${game.id}`,
+      sport: `Hockey (${this.selectedLeague.toUpperCase()})`,
+      homeTeam: game.homeTeam,
+      awayTeam: game.awayTeam,
+      kickoff: game.date,
+      market: odd.name,
+      odds: odd.price,
+    });
+  }
+
+  isSelected(game: HockeyGame, odd: HockeyOddsOutcome): boolean {
+    return this.betSlipService.isSelected(`hockey-${this.selectedLeague}-${game.id}`, odd.name);
   }
 
   private loadTeamDetail(teamId: string): void {

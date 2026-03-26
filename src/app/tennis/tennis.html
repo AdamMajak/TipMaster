@@ -71,6 +71,18 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
+                    <div class="prices">
+                      @for (odd of game.odds; track odd.name) {
+                        <button
+                          type="button"
+                          class="odd-btn"
+                          [class.active]="isSelected(game, odd)"
+                          (click)="toggleSelection(game, odd)">
+                          <span>{{ odd.name }}</span>
+                          <b>{{ odd.price }}</b>
+                        </button>
+                      }
+                    </div>
                   </article>
                 }
               </div>
@@ -105,6 +117,18 @@
                       </div>
                     </div>
                     <p class="meta">{{ game.date | date: 'EEE d MMM' : slovakTimezone }} | {{ game.date | date: 'HH:mm' : slovakTimezone }} SK</p>
+                    <div class="prices">
+                      @for (odd of game.odds; track odd.name) {
+                        <button
+                          type="button"
+                          class="odd-btn"
+                          [class.active]="isSelected(game, odd)"
+                          (click)="toggleSelection(game, odd)">
+                          <span>{{ odd.name }}</span>
+                          <b>{{ odd.price }}</b>
+                        </button>
+                      }
+                    </div>
                   </article>
                 }
               </div>
@@ -139,6 +163,18 @@
                       </div>
                     </div>
                     <p class="meta">{{ game.date | date: 'EEE d MMM' : slovakTimezone }} | {{ game.date | date: 'HH:mm' : slovakTimezone }} SK</p>
+                    <div class="prices">
+                      @for (odd of game.odds; track odd.name) {
+                        <button
+                          type="button"
+                          class="odd-btn"
+                          [class.active]="isSelected(game, odd)"
+                          (click)="toggleSelection(game, odd)">
+                          <span>{{ odd.name }}</span>
+                          <b>{{ odd.price }}</b>
+                        </button>
+                      }
+                    </div>
                   </article>
                 }
               </div>

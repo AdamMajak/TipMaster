@@ -1,4 +1,5 @@
-import { Injectable, computed, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
+import { AuthService } from './auth.service';
 
 export interface BetSelection {
   eventId: string;
@@ -21,9 +22,11 @@ export interface BetTicket {
 
 @Injectable({ providedIn: 'root' })
 export class BetSlipService {
-  private readonly storageKey = 'tipmaster-bets';
+  private readonly authService = inject(AuthService);
+  private readonly entriesStorageKey = 'tipmaster-betslip';
+  private readonly ticketsStoragePrefix = 'tipmaster-bets';
   private readonly entriesSignal = signal<BetSelection[]>([]);
-  private readonly ticketsSignal = signal<BetTicket[]>(this.loadTickets());
+  private readonly ticketsSignal = signal<BetTicket[]>([]);
 
   readonly entries = this.entriesSignal.asReadonly();
   readonly tickets = this.ticketsSignal.asReadonly();
@@ -31,6 +34,15 @@ export class BetSlipService {
   readonly totalOdds = computed(() =>
     this.entriesSignal().reduce((acc, entry) => acc * entry.odds, 1)
   );
+
+  constructor() {
+    this.entriesSignal.set(this.loadEntries());
+
+    effect(() => {
+      const user = this.authService.currentUser();
+      this.ticketsSignal.set(this.loadTickets(user?.id));
+    });
+  }
 
   toggleSelection(selection: BetSelection): void {
     const current = this.entriesSignal();
@@ -44,21 +56,25 @@ export class BetSlipService {
           (item) => !(item.eventId === selection.eventId && item.market === selection.market)
         )
       );
+      this.saveEntries(this.entriesSignal());
       return;
     }
 
     const withoutSameEvent = current.filter((item) => item.eventId !== selection.eventId);
     this.entriesSignal.set([...withoutSameEvent, selection]);
+    this.saveEntries(this.entriesSignal());
   }
 
   removeSelection(eventId: string, market: string): void {
     this.entriesSignal.set(
       this.entriesSignal().filter((item) => !(item.eventId === eventId && item.market === market))
     );
+    this.saveEntries(this.entriesSignal());
   }
 
   clear(): void {
     this.entriesSignal.set([]);
+    this.saveEntries([]);
   }
 
   isSelected(eventId: string, market: string): boolean {
@@ -66,6 +82,11 @@ export class BetSlipService {
   }
 
   placeBet(stake: number): BetTicket | null {
+    const userId = this.authService.currentUser()?.id;
+    if (!userId) {
+      return null;
+    }
+
     const selections = this.entriesSignal();
     if (!selections.length) {
       return null;
@@ -83,22 +104,45 @@ export class BetSlipService {
 
     const next = [ticket, ...this.ticketsSignal()];
     this.ticketsSignal.set(next);
-    this.saveTickets(next);
+    this.saveTickets(next, userId);
     this.clear();
     return ticket;
   }
 
   clearTickets(): void {
     this.ticketsSignal.set([]);
-    this.saveTickets([]);
+    this.saveTickets([], this.authService.currentUser()?.id);
   }
 
-  private loadTickets(): BetTicket[] {
+  private loadEntries(): BetSelection[] {
     if (typeof localStorage === 'undefined') {
       return [];
     }
     try {
-      const raw = localStorage.getItem(this.storageKey);
+      const raw = localStorage.getItem(this.entriesStorageKey);
+      const parsed = raw ? (JSON.parse(raw) as BetSelection[]) : [];
+      return Array.isArray(parsed) ? parsed : [];
+    } catch {
+      return [];
+    }
+  }
+
+  private saveEntries(items: BetSelection[]): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.setItem(this.entriesStorageKey, JSON.stringify(items));
+  }
+
+  private loadTickets(userId?: string): BetTicket[] {
+    if (!userId) {
+      return [];
+    }
+    if (typeof localStorage === 'undefined') {
+      return [];
+    }
+    try {
+      const raw = localStorage.getItem(this.ticketsKey(userId));
       const parsed = raw ? (JSON.parse(raw) as BetTicket[]) : [];
       return Array.isArray(parsed) ? parsed : [];
     } catch {
@@ -106,10 +150,13 @@ export class BetSlipService {
     }
   }
 
-  private saveTickets(items: BetTicket[]): void {
-    if (typeof localStorage === 'undefined') {
+  private saveTickets(items: BetTicket[], userId?: string): void {
+    if (!userId || typeof localStorage === 'undefined') {
       return;
     }
-    localStorage.setItem(this.storageKey, JSON.stringify(items));
+    localStorage.setItem(this.ticketsKey(userId), JSON.stringify(items));
+  }
+  private ticketsKey(userId: string): string {
+    return `${this.ticketsStoragePrefix}:${userId}`;
   }
 }

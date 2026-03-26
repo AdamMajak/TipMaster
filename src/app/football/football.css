@@ -185,19 +185,6 @@
   gap: 10px;
 }
 
-.score-card.clickable {
-  cursor: pointer;
-  transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
-  touch-action: manipulation;
-  display: block;
-  text-decoration: none;
-}
-
-.score-card.clickable:hover {
-  border-color: #4b73ab;
-  transform: translateY(-1px);
-}
-
 .match-detail {
   border: 1px solid #456892;
   background: linear-gradient(145deg, #192b47, #121f34);
@@ -315,6 +302,51 @@
 .score-teams {
   display: grid;
   gap: 6px;
+}
+
+.card-actions {
+  display: grid;
+  gap: 10px;
+}
+
+.detail-link {
+  display: inline-flex;
+  width: fit-content;
+  text-decoration: none;
+  color: #dce9ff;
+  border: 1px solid #3f5f8b;
+  background: #203252;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 0.82rem;
+}
+
+.prices {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.odd-btn {
+  border-radius: 999px;
+  border: 1px solid #3f5f8b;
+  background: #203252;
+  padding: 6px 10px;
+  color: #dce9ff;
+  font-size: 0.82rem;
+  display: inline-flex;
+  gap: 6px;
+  align-items: center;
+  cursor: pointer;
+}
+
+.odd-btn b {
+  color: #ffcb88;
+}
+
+.odd-btn.active {
+  border-color: #ffb14a;
+  box-shadow: 0 0 0 1px rgba(255, 177, 74, 0.3);
 }
 
 .team-row {

@@ -12,6 +12,12 @@ export interface HockeyGame {
   homeScore?: number;
   awayScore?: number;
   venue?: string;
+  odds: HockeyOddsOutcome[];
+}
+
+export interface HockeyOddsOutcome {
+  name: string;
+  price: number;
 }
 
 export interface HockeyNewsItem {
@@ -91,6 +97,54 @@ export interface HockeyMatchSummary {
 }
 
 const ESPN_HOCKEY_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/hockey';
+const DEFAULT_HOCKEY_TEAM_RATING = 74;
+const HOCKEY_HOME_ADVANTAGE = 4;
+const HOCKEY_BOOK_MARGIN = 1.06;
+
+const HOCKEY_LEAGUE_BASE_RATINGS: Record<string, number> = {
+  nhl: 84,
+  'mens-college-hockey': 69,
+  'womens-college-hockey': 67,
+  'hockey-world-cup': 86,
+  'olympics-mens-ice-hockey': 84,
+  'olympics-womens-ice-hockey': 80,
+};
+
+const HOCKEY_TEAM_RATINGS: Record<string, number> = {
+  'colorado avalanche': 96,
+  'dallas stars': 95,
+  'carolina hurricanes': 93,
+  'buffalo sabres': 91,
+  'minnesota wild': 90,
+  'tampa bay lightning': 89,
+  'montreal canadiens': 88,
+  'pittsburgh penguins': 87,
+  'detroit red wings': 86,
+  'new york islanders': 85,
+  'boston bruins': 84,
+  'anaheim ducks': 84,
+  'columbus blue jackets': 83,
+  'ottawa senators': 82,
+  'vegas golden knights': 82,
+  'utah mammoth': 81,
+  'utah hockey club': 81,
+  'edmonton oilers': 80,
+  'florida panthers': 80,
+  'toronto maple leafs': 79,
+  'new jersey devils': 79,
+  'washington capitals': 78,
+  'new york rangers': 78,
+  'winnipeg jets': 78,
+  'vancouver canucks': 77,
+  'los angeles kings': 77,
+  'philadelphia flyers': 76,
+  'seattle kraken': 75,
+  'st louis blues': 75,
+  'nashville predators': 74,
+  'calgary flames': 73,
+  'san jose sharks': 66,
+  'chicago blackhawks': 69,
+};
 
 @Injectable({ providedIn: 'root' })
 export class EspnHockeyService {
@@ -103,7 +157,7 @@ export class EspnHockeyService {
     );
 
     return forkJoin(requests).pipe(
-      map((responses) => responses.flatMap((data) => this.mapScoreboard(data))),
+      map((responses) => responses.flatMap((data) => this.mapScoreboard(data, league))),
       map((games) => this.deduplicateGames(games)),
       map((games) => this.sortGames(games))
     );
@@ -144,7 +198,7 @@ export class EspnHockeyService {
     );
   }
 
-  private mapScoreboard(data: any): HockeyGame[] {
+  private mapScoreboard(data: any, league: string): HockeyGame[] {
     const events = data?.events ?? [];
     return events.map((event: any) => {
       const competition = event?.competitions?.[0];
@@ -155,19 +209,79 @@ export class EspnHockeyService {
       const status = statusType?.shortDetail ?? statusType?.detail ?? statusType?.description ?? 'Scheduled';
       const displayStatus = statusType?.name ?? statusType?.description ?? status;
       const venue = competition?.venue?.fullName ?? competition?.venue?.name;
+      const homeTeam = home?.team?.displayName ?? home?.team?.shortDisplayName ?? 'Home';
+      const awayTeam = away?.team?.displayName ?? away?.team?.shortDisplayName ?? 'Away';
 
       return {
         id: event?.id ?? competition?.id ?? `${home?.team?.id ?? 'home'}-${away?.team?.id ?? 'away'}`,
         date: event?.date ?? competition?.date ?? new Date().toISOString(),
         status: displayStatus,
         detail: status,
-        homeTeam: home?.team?.displayName ?? home?.team?.shortDisplayName ?? 'Home',
-        awayTeam: away?.team?.displayName ?? away?.team?.shortDisplayName ?? 'Away',
+        homeTeam,
+        awayTeam,
         homeScore: this.toScore(home?.score),
         awayScore: this.toScore(away?.score),
         venue,
+        odds: this.buildGameOdds(homeTeam, awayTeam, league),
       };
     });
+  }
+
+  private buildGameOdds(homeTeam: string, awayTeam: string, league: string): HockeyOddsOutcome[] {
+    const leagueBase = HOCKEY_LEAGUE_BASE_RATINGS[league] ?? DEFAULT_HOCKEY_TEAM_RATING;
+    const homeRating = this.resolveTeamRating(homeTeam, leagueBase) + HOCKEY_HOME_ADVANTAGE;
+    const awayRating = this.resolveTeamRating(awayTeam, leagueBase);
+    const ratingDiff = homeRating - awayRating;
+    const drawProbability = this.clamp(
+      0.29 - Math.abs(ratingDiff) * 0.002,
+      0.24,
+      0.29
+    );
+    const remainder = 1 - drawProbability;
+    const homeShare = 1 / (1 + Math.exp(-ratingDiff / 14));
+    const rawHomeProbability = remainder * homeShare;
+    const rawAwayProbability = remainder - rawHomeProbability;
+    const homeProbability = this.clamp(
+      rawHomeProbability,
+      0.2,
+      0.58
+    );
+    const awayProbability = this.clamp(
+      rawAwayProbability,
+      0.2,
+      0.58
+    );
+
+    return [
+      { name: '1', price: this.toDecimalOdds(homeProbability) },
+      { name: 'X', price: this.toDecimalOdds(drawProbability) },
+      { name: '2', price: this.toDecimalOdds(awayProbability) },
+    ];
+  }
+
+  private resolveTeamRating(teamName: string, leagueBase: number): number {
+    const normalized = this.normalizeName(teamName);
+    return HOCKEY_TEAM_RATINGS[normalized] ?? leagueBase;
+  }
+
+  private normalizeName(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9 ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private toDecimalOdds(probability: number): number {
+    const safeProbability = this.clamp(probability, 0.2, 0.58);
+    const rawOdds = 1 / (safeProbability * HOCKEY_BOOK_MARGIN);
+    return Math.round(this.clamp(rawOdds, 1.62, 3.5) * 100) / 100;
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
   }
 
   private buildScoreboardDates(): string[] {

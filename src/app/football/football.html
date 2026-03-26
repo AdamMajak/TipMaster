@@ -52,9 +52,7 @@
             } @else {
               <div class="score-grid">
                 @for (game of scheduledGames; track game.id) {
-                  <a class="score-card clickable"
-                    [routerLink]="['/football/match', game.id]"
-                    [queryParams]="{ league: selectedLeague }">
+                  <article class="score-card">
                     <div class="score-head">
                       <span class="status-pill">{{ game.status }}</span>
                       <span class="meta">{{ game.detail }}</span>
@@ -73,7 +71,36 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
-                  </a>
+                    @if (game.odds.length) {
+                      <div class="card-actions">
+                        <a
+                          class="detail-link"
+                          [routerLink]="['/football/match', game.id]"
+                          [queryParams]="{ league: selectedLeague }">
+                          Open detail
+                        </a>
+                        <div class="prices">
+                          @for (odd of game.odds; track odd.name) {
+                            <button
+                              type="button"
+                              class="odd-btn"
+                              [class.active]="isSelected(game, odd)"
+                              (click)="toggleSelection(game, odd)">
+                              <span>{{ odd.name }}</span>
+                              <b>{{ odd.price }}</b>
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    } @else {
+                      <a
+                        class="detail-link"
+                        [routerLink]="['/football/match', game.id]"
+                        [queryParams]="{ league: selectedLeague }">
+                        Open detail
+                      </a>
+                    }
+                  </article>
                 }
               </div>
             }
@@ -91,9 +118,7 @@
             } @else {
               <div class="score-grid">
                 @for (game of liveGames; track game.id) {
-                  <a class="score-card clickable"
-                    [routerLink]="['/football/match', game.id]"
-                    [queryParams]="{ league: selectedLeague }">
+                  <article class="score-card">
                     <div class="score-head">
                       <span class="status-pill">{{ game.status }}</span>
                       <span class="meta">{{ game.detail }}</span>
@@ -112,7 +137,36 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
-                  </a>
+                    @if (game.odds.length) {
+                      <div class="card-actions">
+                        <a
+                          class="detail-link"
+                          [routerLink]="['/football/match', game.id]"
+                          [queryParams]="{ league: selectedLeague }">
+                          Open detail
+                        </a>
+                        <div class="prices">
+                          @for (odd of game.odds; track odd.name) {
+                            <button
+                              type="button"
+                              class="odd-btn"
+                              [class.active]="isSelected(game, odd)"
+                              (click)="toggleSelection(game, odd)">
+                              <span>{{ odd.name }}</span>
+                              <b>{{ odd.price }}</b>
+                            </button>
+                          }
+                        </div>
+                      </div>
+                    } @else {
+                      <a
+                        class="detail-link"
+                        [routerLink]="['/football/match', game.id]"
+                        [queryParams]="{ league: selectedLeague }">
+                        Open detail
+                      </a>
+                    }
+                  </article>
                 }
               </div>
             }
@@ -139,9 +193,7 @@
 
                 <div class="score-grid">
                   @for (game of latestMatchdayGames; track game.id) {
-                    <a class="score-card clickable"
-                      [routerLink]="['/football/match', game.id]"
-                      [queryParams]="{ league: selectedLeague }">
+                    <article class="score-card">
                       <div class="score-head">
                         <span class="status-pill">{{ game.status }}</span>
                         <span class="meta">{{ game.detail }}</span>
@@ -160,7 +212,36 @@
                       @if (game.venue) {
                         <p class="meta">Venue: {{ game.venue }}</p>
                       }
-                    </a>
+                      @if (game.odds.length) {
+                        <div class="card-actions">
+                          <a
+                            class="detail-link"
+                            [routerLink]="['/football/match', game.id]"
+                            [queryParams]="{ league: selectedLeague }">
+                            Open detail
+                          </a>
+                          <div class="prices">
+                            @for (odd of game.odds; track odd.name) {
+                              <button
+                                type="button"
+                                class="odd-btn"
+                                [class.active]="isSelected(game, odd)"
+                                (click)="toggleSelection(game, odd)">
+                                <span>{{ odd.name }}</span>
+                                <b>{{ odd.price }}</b>
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      } @else {
+                        <a
+                          class="detail-link"
+                          [routerLink]="['/football/match', game.id]"
+                          [queryParams]="{ league: selectedLeague }">
+                          Open detail
+                        </a>
+                      }
+                    </article>
                   }
                 </div>
               </div>
@@ -176,9 +257,7 @@
 
                 <div class="score-grid">
                   @for (game of olderFinishedGames; track game.id) {
-                    <a class="score-card clickable"
-                      [routerLink]="['/football/match', game.id]"
-                      [queryParams]="{ league: selectedLeague }">
+                    <article class="score-card">
                       <div class="score-head">
                         <span class="status-pill">{{ game.status }}</span>
                         <span class="meta">{{ game.detail }}</span>
@@ -197,7 +276,36 @@
                       @if (game.venue) {
                         <p class="meta">Venue: {{ game.venue }}</p>
                       }
-                    </a>
+                      @if (game.odds.length) {
+                        <div class="card-actions">
+                          <a
+                            class="detail-link"
+                            [routerLink]="['/football/match', game.id]"
+                            [queryParams]="{ league: selectedLeague }">
+                            Open detail
+                          </a>
+                          <div class="prices">
+                            @for (odd of game.odds; track odd.name) {
+                              <button
+                                type="button"
+                                class="odd-btn"
+                                [class.active]="isSelected(game, odd)"
+                                (click)="toggleSelection(game, odd)">
+                                <span>{{ odd.name }}</span>
+                                <b>{{ odd.price }}</b>
+                              </button>
+                            }
+                          </div>
+                        </div>
+                      } @else {
+                        <a
+                          class="detail-link"
+                          [routerLink]="['/football/match', game.id]"
+                          [queryParams]="{ league: selectedLeague }">
+                          Open detail
+                        </a>
+                      }
+                    </article>
                   }
                 </div>
               }

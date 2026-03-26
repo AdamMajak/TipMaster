@@ -14,6 +14,12 @@ export interface SoccerGame {
   homeScore?: number;
   awayScore?: number;
   venue?: string;
+  odds: SoccerOddsOutcome[];
+}
+
+export interface SoccerOddsOutcome {
+  name: string;
+  price: number;
 }
 
 export interface SoccerNewsItem {
@@ -110,6 +116,149 @@ export interface SoccerMatchSummary {
 }
 
 const ESPN_SOCCER_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
+const DEFAULT_TEAM_RATING = 74;
+const HOME_ADVANTAGE = 5;
+const BOOK_MARGIN = 1.07;
+
+const LEAGUE_BASE_RATINGS: Record<string, number> = {
+  'eng.1': 82,
+  'eng.2': 74,
+  'eng.3': 68,
+  'eng.4': 64,
+  'eng.5': 60,
+  'esp.1': 80,
+  'esp.2': 72,
+  'ger.1': 79,
+  'ger.2': 71,
+  'ita.1': 79,
+  'ita.2': 70,
+  'fra.1': 78,
+  'fra.2': 70,
+  'por.1': 75,
+  'ned.1': 76,
+  'bel.1': 72,
+  'aut.1': 71,
+  'tur.1': 74,
+  'gre.1': 72,
+  'den.1': 70,
+  'nor.1': 68,
+  'swe.1': 68,
+  'sco.1': 72,
+  'usa.1': 69,
+  'uefa.champions': 86,
+  'uefa.europa': 81,
+  'uefa.europa.conf': 77,
+  'concacaf.champions': 72,
+  'fifa.world': 84,
+  'fifa.worldq': 76,
+  'fifa.worldq.uefa': 78,
+  'fifa.worldq.concacaf': 70,
+  'fifa.worldq.conmebol': 78,
+};
+
+const TEAM_RATINGS: Record<string, number> = {
+  'real madrid': 99,
+  barcelona: 95,
+  'atletico madrid': 92,
+  'athletic club': 86,
+  'real sociedad': 85,
+  sevilla: 81,
+  villarreal: 83,
+  'real betis': 82,
+  valencia: 79,
+  girona: 80,
+  'manchester city': 98,
+  arsenal: 95,
+  liverpool: 96,
+  chelsea: 88,
+  'manchester united': 86,
+  'tottenham hotspur': 87,
+  'newcastle united': 85,
+  'aston villa': 84,
+  brighton: 80,
+  'west ham united': 78,
+  fulham: 76,
+  brentford: 76,
+  'crystal palace': 75,
+  bournemouth: 75,
+  everton: 74,
+  'nottingham forest': 74,
+  wolves: 73,
+  'wolverhampton wanderers': 73,
+  leicester: 75,
+  'leicester city': 75,
+  ipswich: 69,
+  'ipswich town': 69,
+  southampton: 70,
+  'bayern munich': 98,
+  leverkusen: 94,
+  'bayer leverkusen': 94,
+  dortmund: 90,
+  'borussia dortmund': 90,
+  leipzig: 88,
+  'rb leipzig': 88,
+  stuttgart: 84,
+  frankfurt: 82,
+  'eintracht frankfurt': 82,
+  'borussia monchengladbach': 78,
+  monchengladbach: 78,
+  hoffenheim: 76,
+  freiburg: 77,
+  wolfsburg: 77,
+  'st pauli': 71,
+  inter: 96,
+  'inter milan': 96,
+  juventus: 90,
+  milan: 89,
+  'ac milan': 89,
+  napoli: 88,
+  atalanta: 88,
+  roma: 85,
+  lazio: 84,
+  fiorentina: 81,
+  bologna: 81,
+  torino: 77,
+  psg: 99,
+  'paris saint germain': 99,
+  marseille: 84,
+  monaco: 85,
+  lyon: 80,
+  lille: 82,
+  lens: 80,
+  benfica: 89,
+  porto: 87,
+  sporting: 88,
+  'sporting cp': 88,
+  psv: 91,
+  ajax: 84,
+  feyenoord: 86,
+  celtic: 85,
+  rangers: 82,
+  galatasaray: 85,
+  fenerbahce: 84,
+  besiktas: 79,
+  olympiakos: 81,
+  'club brugge': 78,
+  anderlecht: 77,
+  salzburg: 78,
+  'red bull salzburg': 78,
+  bodo: 74,
+  'bodo glimt': 74,
+  'bodo/glimt': 74,
+  copenhagen: 77,
+  'fc copenhagen': 77,
+  dinamo: 76,
+  'dinamo zagreb': 76,
+  sparta: 75,
+  'sparta prague': 75,
+  'slavia prague': 76,
+  wrexham: 70,
+  'swansea city': 71,
+  'colchester united': 62,
+  'crawley town': 61,
+  morton: 63,
+  'partick thistle': 64,
+};
 
 @Injectable({ providedIn: 'root' })
 export class EspnSoccerService {
@@ -122,7 +271,7 @@ export class EspnSoccerService {
     );
 
     return forkJoin(requests).pipe(
-      map((responses) => responses.flatMap((data) => this.mapScoreboard(data))),
+      map((responses) => responses.flatMap((data) => this.mapScoreboard(data, league))),
       map((games) => this.deduplicateGames(games)),
       map((games) => this.sortGames(games))
     );
@@ -169,7 +318,7 @@ export class EspnSoccerService {
       );
   }
 
-  private mapScoreboard(data: any): SoccerGame[] {
+  private mapScoreboard(data: any, league: string): SoccerGame[] {
     const events = data?.events ?? [];
     return events.map((event: any) => {
       const competition = event?.competitions?.[0];
@@ -181,6 +330,9 @@ export class EspnSoccerService {
       const displayStatus = this.formatStatusLabel(statusType, status);
       const venue = competition?.venue?.fullName ?? competition?.venue?.name;
 
+      const homeTeam = home?.team?.displayName ?? home?.team?.shortDisplayName ?? 'Home';
+      const awayTeam = away?.team?.displayName ?? away?.team?.shortDisplayName ?? 'Away';
+
       return {
         id: event?.id ?? competition?.id ?? `${home?.team?.id ?? 'home'}-${away?.team?.id ?? 'away'}`,
         date: event?.date ?? competition?.date ?? new Date().toISOString(),
@@ -188,13 +340,58 @@ export class EspnSoccerService {
         detail: status,
         state: statusType?.state,
         completed: Boolean(statusType?.completed),
-        homeTeam: home?.team?.displayName ?? home?.team?.shortDisplayName ?? 'Home',
-        awayTeam: away?.team?.displayName ?? away?.team?.shortDisplayName ?? 'Away',
+        homeTeam,
+        awayTeam,
         homeScore: this.toScore(home?.score),
         awayScore: this.toScore(away?.score),
         venue,
+        odds: this.buildMatchOdds(homeTeam, awayTeam, league),
       };
     });
+  }
+
+  private buildMatchOdds(homeTeam: string, awayTeam: string, league: string): SoccerOddsOutcome[] {
+    const leagueBase = LEAGUE_BASE_RATINGS[league] ?? DEFAULT_TEAM_RATING;
+    const homeRating = this.resolveTeamRating(homeTeam, leagueBase) + HOME_ADVANTAGE;
+    const awayRating = this.resolveTeamRating(awayTeam, leagueBase);
+    const ratingDiff = homeRating - awayRating;
+    const drawProbability = this.clamp(0.29 - Math.abs(ratingDiff) * 0.0035, 0.19, 0.3);
+    const remainder = 1 - drawProbability;
+    const homeShare = 1 / (1 + Math.exp(-ratingDiff / 7.5));
+    const homeProbability = remainder * homeShare;
+    const awayProbability = remainder - homeProbability;
+
+    return [
+      { name: '1', price: this.toDecimalOdds(homeProbability) },
+      { name: 'X', price: this.toDecimalOdds(drawProbability) },
+      { name: '2', price: this.toDecimalOdds(awayProbability) },
+    ];
+  }
+
+  private resolveTeamRating(teamName: string, leagueBase: number): number {
+    const normalized = this.normalizeTeamName(teamName);
+    return TEAM_RATINGS[normalized] ?? leagueBase;
+  }
+
+  private normalizeTeamName(teamName: string): string {
+    return teamName
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\b(fc|cf|sc|ac|afc|cfc|bk|fk|sv|ss|as)\b/g, ' ')
+      .replace(/[^a-z0-9/ ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private toDecimalOdds(probability: number): number {
+    const safeProbability = this.clamp(probability, 0.05, 0.82);
+    const marketOdds = 1 / (safeProbability * BOOK_MARGIN);
+    return Math.round(this.clamp(marketOdds, 1.18, 13) * 100) / 100;
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
   }
 
   private formatStatusLabel(statusType: any, fallback: string): string {
