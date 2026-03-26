@@ -27,10 +27,14 @@
           <h3>Account</h3>
           @if (isAuthenticated()) {
             <span class="account-badge">Online</span>
+          } @else if (!isAuthReady()) {
+            <span class="account-badge">Connecting</span>
           }
         </header>
 
-        @if (isAuthenticated()) {
+        @if (!isAuthReady()) {
+          <p class="account-message">Connecting to Firebase Auth...</p>
+        } @else if (isAuthenticated()) {
           <div class="account-user">
             <strong>{{ currentUser()?.name }}</strong>
             <span>{{ currentUser()?.email }}</span>
@@ -64,7 +68,7 @@
                 Password
                 <input type="password" name="loginPassword" [(ngModel)]="loginPassword" />
               </label>
-              <button type="submit" class="bet-btn">Login</button>
+              <button type="submit" class="bet-btn" [disabled]="authPending">Login</button>
             </form>
           } @else {
             <form class="auth-form" (ngSubmit)="register()">
@@ -80,7 +84,7 @@
                 Password
                 <input type="password" name="registerPassword" [(ngModel)]="registerPassword" />
               </label>
-              <button type="submit" class="bet-btn">Create account</button>
+              <button type="submit" class="bet-btn" [disabled]="authPending">Create account</button>
             </form>
           }
 

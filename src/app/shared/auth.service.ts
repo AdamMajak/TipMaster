@@ -1,4 +1,13 @@
 import { Injectable, computed, signal } from '@angular/core';
+import {
+  User,
+  createUserWithEmailAndPassword,
+  onAuthStateChanged,
+  signInWithEmailAndPassword,
+  signOut,
+  updateProfile,
+} from 'firebase/auth';
+import { firebaseAuth } from './firebase.config';
 
 export interface AuthUser {
   id: string;
@@ -7,20 +16,23 @@ export interface AuthUser {
   createdAt: string;
 }
 
-interface StoredAuthUser extends AuthUser {
-  password: string;
-}
-
 @Injectable({ providedIn: 'root' })
 export class AuthService {
-  private readonly usersKey = 'tipmaster-users';
-  private readonly sessionKey = 'tipmaster-session';
-  private readonly currentUserSignal = signal<AuthUser | null>(this.loadSessionUser());
+  private readonly currentUserSignal = signal<AuthUser | null>(null);
+  private readonly authReadySignal = signal(false);
 
   readonly currentUser = this.currentUserSignal.asReadonly();
   readonly isAuthenticated = computed(() => Boolean(this.currentUserSignal()));
+  readonly isReady = this.authReadySignal.asReadonly();
 
-  register(name: string, email: string, password: string): { ok: true } | { ok: false; message: string } {
+  constructor() {
+    onAuthStateChanged(firebaseAuth, (user) => {
+      this.currentUserSignal.set(user ? this.mapUser(user) : null);
+      this.authReadySignal.set(true);
+    });
+  }
+
+  async register(name: string, email: string, password: string): Promise<{ ok: true } | { ok: false; message: string }> {
     const normalizedName = name.trim();
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPassword = password.trim();
@@ -33,103 +45,75 @@ export class AuthService {
       return { ok: false, message: 'Email format is invalid.' };
     }
 
-    if (normalizedPassword.length < 4) {
-      return { ok: false, message: 'Password must have at least 4 characters.' };
+    if (normalizedPassword.length < 6) {
+      return { ok: false, message: 'Password must have at least 6 characters.' };
     }
 
-    const users = this.loadUsers();
-    if (users.some((user) => user.email === normalizedEmail)) {
-      return { ok: false, message: 'Account with this email already exists.' };
+    try {
+      const credentials = await createUserWithEmailAndPassword(firebaseAuth, normalizedEmail, normalizedPassword);
+      await updateProfile(credentials.user, { displayName: normalizedName });
+      this.currentUserSignal.set(this.mapUser(credentials.user, normalizedName));
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, message: this.toMessage(error) };
     }
-
-    const created: StoredAuthUser = {
-      id: `user-${Date.now()}`,
-      email: normalizedEmail,
-      name: normalizedName,
-      createdAt: new Date().toISOString(),
-      password: normalizedPassword,
-    };
-
-    users.push(created);
-    this.saveUsers(users);
-    this.setSession(created);
-    return { ok: true };
   }
 
-  login(email: string, password: string): { ok: true } | { ok: false; message: string } {
+  async login(email: string, password: string): Promise<{ ok: true } | { ok: false; message: string }> {
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPassword = password.trim();
-    const user = this.loadUsers().find(
-      (item) => item.email === normalizedEmail && item.password === normalizedPassword
-    );
 
-    if (!user) {
-      return { ok: false, message: 'Wrong email or password.' };
+    if (!normalizedEmail || !normalizedPassword) {
+      return { ok: false, message: 'Fill in email and password.' };
     }
 
-    this.setSession(user);
-    return { ok: true };
+    try {
+      const credentials = await signInWithEmailAndPassword(firebaseAuth, normalizedEmail, normalizedPassword);
+      this.currentUserSignal.set(this.mapUser(credentials.user));
+      return { ok: true };
+    } catch (error) {
+      return { ok: false, message: this.toMessage(error) };
+    }
   }
 
-  logout(): void {
+  async logout(): Promise<void> {
+    await signOut(firebaseAuth);
     this.currentUserSignal.set(null);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.removeItem(this.sessionKey);
-    }
   }
 
-  private setSession(user: StoredAuthUser | AuthUser): void {
-    const sessionUser: AuthUser = {
-      id: user.id,
-      email: user.email,
-      name: user.name,
-      createdAt: user.createdAt,
+  private mapUser(user: User, fallbackName?: string): AuthUser {
+    return {
+      id: user.uid,
+      email: user.email ?? '',
+      name: user.displayName?.trim() || fallbackName || (user.email ? user.email.split('@')[0] : 'User'),
+      createdAt: user.metadata.creationTime
+        ? new Date(user.metadata.creationTime).toISOString()
+        : new Date().toISOString(),
     };
-
-    this.currentUserSignal.set(sessionUser);
-    if (typeof localStorage !== 'undefined') {
-      localStorage.setItem(this.sessionKey, JSON.stringify(sessionUser));
-    }
   }
 
-  private loadSessionUser(): AuthUser | null {
-    if (typeof localStorage === 'undefined') {
-      return null;
-    }
+  private toMessage(error: unknown): string {
+    const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
 
-    try {
-      const raw = localStorage.getItem(this.sessionKey);
-      if (!raw) {
-        return null;
-      }
-      const parsed = JSON.parse(raw) as AuthUser;
-      if (!parsed?.id || !parsed?.email) {
-        return null;
-      }
-      return parsed;
-    } catch {
-      return null;
+    switch (code) {
+      case 'auth/email-already-in-use':
+        return 'Account with this email already exists.';
+      case 'auth/invalid-email':
+        return 'Email format is invalid.';
+      case 'auth/weak-password':
+        return 'Password is too weak.';
+      case 'auth/invalid-credential':
+      case 'auth/user-not-found':
+      case 'auth/wrong-password':
+        return 'Wrong email or password.';
+      case 'auth/too-many-requests':
+        return 'Too many attempts. Try again later.';
+      case 'auth/network-request-failed':
+        return 'Network error. Check your connection.';
+      case 'auth/operation-not-allowed':
+        return 'Email/password login is not enabled in Firebase Auth.';
+      default:
+        return 'Authentication failed.';
     }
-  }
-
-  private loadUsers(): StoredAuthUser[] {
-    if (typeof localStorage === 'undefined') {
-      return [];
-    }
-
-    try {
-      const raw = localStorage.getItem(this.usersKey);
-      const parsed = raw ? (JSON.parse(raw) as StoredAuthUser[]) : [];
-      return Array.isArray(parsed) ? parsed : [];
-    } catch {
-      return [];
-    }
-  }
-
-  private saveUsers(users: StoredAuthUser[]): void {
-    if (typeof localStorage === 'undefined') {
-      return;
-    }
-    localStorage.setItem(this.usersKey, JSON.stringify(users));
   }
 }

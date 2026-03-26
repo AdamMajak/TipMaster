@@ -24,12 +24,14 @@ export class App {
   protected registerEmail = '';
   protected registerPassword = '';
   protected authMessage = '';
+  protected authPending = false;
 
   protected readonly selections = this.betSlipService.entries;
   protected readonly selectionCount = this.betSlipService.count;
   protected readonly tickets = this.betSlipService.tickets;
   protected readonly currentUser = this.authService.currentUser;
   protected readonly isAuthenticated = this.authService.isAuthenticated;
+  protected readonly isAuthReady = this.authService.isReady;
   protected readonly canPlaceBet = computed(
     () => this.betSlipService.count() > 0 && this.stake > 0
   );
@@ -44,8 +46,10 @@ export class App {
     this.authMessage = '';
   }
 
-  protected login(): void {
-    const result = this.authService.login(this.loginEmail, this.loginPassword);
+  protected async login(): Promise<void> {
+    this.authPending = true;
+    const result = await this.authService.login(this.loginEmail, this.loginPassword);
+    this.authPending = false;
     if (!result.ok) {
       this.authMessage = result.message;
       return;
@@ -55,12 +59,14 @@ export class App {
     this.loginPassword = '';
   }
 
-  protected register(): void {
-    const result = this.authService.register(
+  protected async register(): Promise<void> {
+    this.authPending = true;
+    const result = await this.authService.register(
       this.registerName,
       this.registerEmail,
       this.registerPassword
     );
+    this.authPending = false;
     if (!result.ok) {
       this.authMessage = result.message;
       return;
@@ -71,8 +77,8 @@ export class App {
     this.authMode = 'login';
   }
 
-  protected logout(): void {
-    this.authService.logout();
+  protected async logout(): Promise<void> {
+    await this.authService.logout();
   }
 
   protected removeSelection(eventId: string, market: string): void {
