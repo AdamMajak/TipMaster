@@ -7,7 +7,7 @@ import {
   signOut,
   updateProfile,
 } from 'firebase/auth';
-import { firebaseAuth } from './firebase.config';
+import { firebaseAuth, firebaseInitError } from './firebase.config';
 
 export interface AuthUser {
   id: string;
@@ -20,12 +20,20 @@ export interface AuthUser {
 export class AuthService {
   private readonly currentUserSignal = signal<AuthUser | null>(null);
   private readonly authReadySignal = signal(false);
+  private readonly configErrorSignal = signal<string | null>(firebaseInitError);
 
   readonly currentUser = this.currentUserSignal.asReadonly();
   readonly isAuthenticated = computed(() => Boolean(this.currentUserSignal()));
   readonly isReady = this.authReadySignal.asReadonly();
+  readonly configError = this.configErrorSignal.asReadonly();
 
   constructor() {
+    if (!firebaseAuth) {
+      this.currentUserSignal.set(null);
+      this.authReadySignal.set(true);
+      return;
+    }
+
     onAuthStateChanged(firebaseAuth, (user) => {
       this.currentUserSignal.set(user ? this.mapUser(user) : null);
       this.authReadySignal.set(true);
@@ -33,6 +41,10 @@ export class AuthService {
   }
 
   async register(name: string, email: string, password: string): Promise<{ ok: true } | { ok: false; message: string }> {
+    if (!firebaseAuth) {
+      return { ok: false, message: this.configErrorSignal() ?? 'Firebase Auth is not available.' };
+    }
+
     const normalizedName = name.trim();
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPassword = password.trim();
@@ -60,6 +72,10 @@ export class AuthService {
   }
 
   async login(email: string, password: string): Promise<{ ok: true } | { ok: false; message: string }> {
+    if (!firebaseAuth) {
+      return { ok: false, message: this.configErrorSignal() ?? 'Firebase Auth is not available.' };
+    }
+
     const normalizedEmail = email.trim().toLowerCase();
     const normalizedPassword = password.trim();
 
@@ -77,6 +93,10 @@ export class AuthService {
   }
 
   async logout(): Promise<void> {
+    if (!firebaseAuth) {
+      return;
+    }
+
     await signOut(firebaseAuth);
     this.currentUserSignal.set(null);
   }
@@ -95,6 +115,14 @@ export class AuthService {
   private toMessage(error: unknown): string {
     const code = typeof error === 'object' && error && 'code' in error ? String(error.code) : '';
 
+    if (code.includes('api-key-not-valid') || code === 'auth/invalid-api-key') {
+      return 'Firebase API key is invalid. Check src/app/shared/firebase.config.local.ts.';
+    }
+
+    if (code === 'auth/app-not-authorized') {
+      return 'This app is not authorized for this Firebase project. Check authDomain/projectId in src/app/shared/firebase.config.local.ts.';
+    }
+
     switch (code) {
       case 'auth/email-already-in-use':
         return 'Account with this email already exists.';
@@ -102,6 +130,8 @@ export class AuthService {
         return 'Email format is invalid.';
       case 'auth/weak-password':
         return 'Password is too weak.';
+      case 'auth/configuration-not-found':
+        return 'Firebase Auth configuration not found. Check that the Firebase project is correct and Auth is enabled.';
       case 'auth/invalid-credential':
       case 'auth/user-not-found':
       case 'auth/wrong-password':

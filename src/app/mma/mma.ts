@@ -21,7 +21,7 @@ interface SportMatch {
 })
 export class Mma implements OnInit {
   readonly pageTitle = 'MMA Odds';
-  readonly subtitle = 'Fight odds from RapidAPI.';
+  readonly subtitle = 'Real bookmaker odds from The Odds API.';
 
   loading = true;
   error = '';

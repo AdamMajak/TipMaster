@@ -32,6 +32,7 @@ export class App {
   protected readonly currentUser = this.authService.currentUser;
   protected readonly isAuthenticated = this.authService.isAuthenticated;
   protected readonly isAuthReady = this.authService.isReady;
+  protected readonly authConfigError = this.authService.configError;
   protected readonly canPlaceBet = computed(
     () => this.betSlipService.count() > 0 && this.stake > 0
   );

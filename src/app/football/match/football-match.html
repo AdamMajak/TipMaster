@@ -33,6 +33,9 @@
       <article class="match-header">
         <div>
           <h3>{{ summary.awayTeam ?? 'Away' }} vs {{ summary.homeTeam ?? 'Home' }}</h3>
+          @if (summary.source === 'scoreboard') {
+            <p class="meta">Limited details (scoreboard only). Full match stats may be blocked by ESPN CORS on static hosting.</p>
+          }
           <p class="meta">
             {{ summary.date | date: 'EEE d MMM' : slovakTimezone }} |
             {{ summary.date | date: 'HH:mm' : slovakTimezone }} SK
@@ -49,6 +52,113 @@
         </div>
       </article>
 
+      @if (extrasError) {
+        <p class="meta">{{ extrasError }}</p>
+      } @else if (extrasLoading) {
+        <p class="meta">Loading extra match info...</p>
+      } @else if (extras) {
+        <details class="widget-block collapsible" open>
+          <summary class="collapse-head">
+            <h3 class="section-title">Teams</h3>
+            <span class="section-chip">Records & venues</span>
+          </summary>
+          <div class="collapse-body">
+            <div class="cards-grid">
+              <section class="team-card">
+                @if (awayTeamDetail?.logo) {
+                  <img class="team-logo" [src]="awayTeamDetail?.logo" [alt]="awayTeamDetail?.name ?? 'Away'" loading="lazy" />
+                }
+                <div>
+                  <h4 class="team-name">{{ awayTeamDetail?.name ?? summary.awayTeam ?? 'Away' }}</h4>
+                  <p class="meta">Record: {{ awayTeamDetail?.record ?? 'N/A' }}</p>
+                  @if (awayTeamDetail?.venue) {
+                    <p class="meta">Home venue: {{ awayTeamDetail?.venue }}</p>
+                  }
+                </div>
+              </section>
+
+              <section class="team-card">
+                @if (homeTeamDetail?.logo) {
+                  <img class="team-logo" [src]="homeTeamDetail?.logo" [alt]="homeTeamDetail?.name ?? 'Home'" loading="lazy" />
+                }
+                <div>
+                  <h4 class="team-name">{{ homeTeamDetail?.name ?? summary.homeTeam ?? 'Home' }}</h4>
+                  <p class="meta">Record: {{ homeTeamDetail?.record ?? 'N/A' }}</p>
+                  @if (homeTeamDetail?.venue) {
+                    <p class="meta">Home venue: {{ homeTeamDetail?.venue }}</p>
+                  }
+                </div>
+              </section>
+            </div>
+          </div>
+        </details>
+
+        <details class="widget-block collapsible" open>
+          <summary class="collapse-head">
+            <h3 class="section-title">H2H</h3>
+            <span class="section-chip">{{ h2hGames.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            @if (!h2hGames.length) {
+              <p class="meta">No head-to-head games found in recent schedules.</p>
+            } @else {
+              <ul class="simple-list">
+                @for (g of h2hGames; track g.date) {
+                  <li>
+                    <span>{{ g.label }}</span>
+                    <span class="meta">
+                      {{ g.date | date: 'd MMM yyyy' : slovakTimezone }} | {{ g.score }}
+                    </span>
+                  </li>
+                }
+              </ul>
+            }
+          </div>
+        </details>
+
+        <details class="widget-block collapsible">
+          <summary class="collapse-head">
+            <h3 class="section-title">Squads</h3>
+            <span class="section-chip">{{ awayRoster.length + homeRoster.length }}</span>
+          </summary>
+          <div class="collapse-body">
+            <div class="rosters">
+              <section class="roster-card">
+                <h4 class="team-name">{{ summary.awayTeam ?? 'Away' }}</h4>
+                @if (!awayRoster.length) {
+                  <p class="meta">Squad not available.</p>
+                } @else {
+                  <ul class="simple-list">
+                    @for (p of awayRoster; track p.id ?? p.name) {
+                      <li>
+                        <span>{{ p.jersey ? p.jersey + ' ' : '' }}{{ p.name }}</span>
+                        <span class="meta">{{ p.position ?? '' }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+              </section>
+
+              <section class="roster-card">
+                <h4 class="team-name">{{ summary.homeTeam ?? 'Home' }}</h4>
+                @if (!homeRoster.length) {
+                  <p class="meta">Squad not available.</p>
+                } @else {
+                  <ul class="simple-list">
+                    @for (p of homeRoster; track p.id ?? p.name) {
+                      <li>
+                        <span>{{ p.jersey ? p.jersey + ' ' : '' }}{{ p.name }}</span>
+                        <span class="meta">{{ p.position ?? '' }}</span>
+                      </li>
+                    }
+                  </ul>
+                }
+              </section>
+            </div>
+          </div>
+        </details>
+      }
+
       @if (summary.teamStats.length) {
         <details class="widget-block collapsible" open>
           <summary class="collapse-head">
@@ -57,11 +167,16 @@
           </summary>
           <div class="collapse-body">
             <div class="stats">
+              <div class="stat-row stat-head">
+                <span class="stat-val">{{ summary.awayTeam ?? 'Away' }}</span>
+                <span class="stat-name">Stat</span>
+                <span class="stat-val">{{ summary.homeTeam ?? 'Home' }}</span>
+              </div>
               @for (stat of summary.teamStats; track stat.name) {
                 <div class="stat-row">
-                  <span class="stat-val">{{ stat.home ?? '-' }}</span>
-                  <span class="stat-name">{{ stat.name }}</span>
                   <span class="stat-val">{{ stat.away ?? '-' }}</span>
+                  <span class="stat-name" [title]="statDescription(stat.name)">{{ formatStatName(stat.name) }}</span>
+                  <span class="stat-val">{{ stat.home ?? '-' }}</span>
                 </div>
               }
             </div>

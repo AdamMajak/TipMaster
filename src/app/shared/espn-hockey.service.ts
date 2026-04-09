@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { catchError, forkJoin, map, Observable, throwError, timeout } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of, switchMap, throwError, timeout } from 'rxjs';
 
 export interface HockeyGame {
   id: string;
@@ -49,6 +49,13 @@ export interface HockeyTeamDetail {
   logo?: string;
 }
 
+export interface HockeyRosterPlayer {
+  id?: string;
+  name: string;
+  position?: string;
+  jersey?: string;
+}
+
 export interface HockeyTeamStat {
   name: string;
   home?: string;
@@ -93,7 +100,16 @@ export interface HockeyMatchSummary {
   teamStats: HockeyTeamStat[];
   playerStats: HockeyPlayerStatsTeam[];
   officials: HockeyOfficial[];
+  source?: 'summary' | 'scoreboard';
   raw: unknown;
+}
+
+export interface HockeyMatchExtras {
+  homeTeamDetail: HockeyTeamDetail | null;
+  awayTeamDetail: HockeyTeamDetail | null;
+  homeRoster: HockeyRosterPlayer[];
+  awayRoster: HockeyRosterPlayer[];
+  h2h: HockeyGame[];
 }
 
 const ESPN_HOCKEY_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/hockey';
@@ -150,6 +166,28 @@ const HOCKEY_TEAM_RATINGS: Record<string, number> = {
 export class EspnHockeyService {
   constructor(private readonly http: HttpClient) {}
 
+  private isLocalDev(): boolean {
+    if (typeof location === 'undefined') {
+      return false;
+    }
+
+    const host = location.hostname;
+    return host === 'localhost' || host === '127.0.0.1' || location.port === '4200';
+  }
+
+  private summaryUrl(league: string, eventId: string): string {
+    const safeLeague = encodeURIComponent(league?.trim() || 'nhl');
+    const safeEvent = encodeURIComponent(eventId);
+
+    if (this.isLocalDev()) {
+      // Local dev proxy: /espn -> https://site.api.espn.com
+      return `/espn/apis/site/v2/sports/hockey/${safeLeague}/summary?event=${safeEvent}`;
+    }
+
+    // Direct URL (may be blocked by CORS on some environments; we handle fallback below).
+    return `${ESPN_HOCKEY_BASE_URL}/${safeLeague}/summary?event=${safeEvent}`;
+  }
+
   getScoreboard(league: string): Observable<HockeyGame[]> {
     const dates = this.buildScoreboardDates();
     const requests = dates.map((date) =>
@@ -181,19 +219,123 @@ export class EspnHockeyService {
     );
   }
 
-  getMatchSummary(league: string, eventId: string): Observable<HockeyMatchSummary | null> {
-    // NOTE: Route through local dev proxy (/espn -> site.api.espn.com) to avoid CORS issues on summary.
-    const base = `/espn/apis/site/v2/sports/hockey/${encodeURIComponent(league)}`;
-
-    return this.http.get<any>(`${base}/summary?event=${encodeURIComponent(eventId)}`).pipe(
+  getTeamRoster(league: string, teamId: string): Observable<HockeyRosterPlayer[]> {
+    return this.http.get<any>(`${this.leagueBaseUrl(league)}/teams/${encodeURIComponent(teamId)}/roster`).pipe(
       timeout(12000),
-      map((data) => this.mapMatchSummary(eventId, data)),
+      map((data) => this.mapRoster(data)),
+      catchError(() => of([]))
+    );
+  }
+
+  getTeamSchedule(league: string, teamId: string): Observable<HockeyGame[]> {
+    return this.http.get<any>(`${this.leagueBaseUrl(league)}/teams/${encodeURIComponent(teamId)}/schedule`).pipe(
+      timeout(12000),
+      map((data) => this.mapScheduleAsGames(data, league)),
+      catchError(() => of([]))
+    );
+  }
+
+  getMatchExtras(league: string, homeTeamName: string, awayTeamName: string): Observable<HockeyMatchExtras> {
+    const empty: HockeyMatchExtras = {
+      homeTeamDetail: null,
+      awayTeamDetail: null,
+      homeRoster: [],
+      awayRoster: [],
+      h2h: [],
+    };
+
+    const safeHome = (homeTeamName ?? '').trim();
+    const safeAway = (awayTeamName ?? '').trim();
+    if (!safeHome || !safeAway) {
+      return of(empty);
+    }
+
+    return this.getTeams(league).pipe(
+      switchMap((teams) => {
+        const homeTeam = this.findTeamByName(teams, safeHome);
+        const awayTeam = this.findTeamByName(teams, safeAway);
+        if (!homeTeam?.id || !awayTeam?.id) {
+          return of(empty);
+        }
+
+        return forkJoin({
+          homeDetail: this.getTeam(league, homeTeam.id).pipe(catchError(() => of(null))),
+          awayDetail: this.getTeam(league, awayTeam.id).pipe(catchError(() => of(null))),
+          homeRoster: this.getTeamRoster(league, homeTeam.id),
+          awayRoster: this.getTeamRoster(league, awayTeam.id),
+          homeSchedule: this.getTeamSchedule(league, homeTeam.id),
+          awaySchedule: this.getTeamSchedule(league, awayTeam.id),
+        }).pipe(
+          map(({ homeDetail, awayDetail, homeRoster, awayRoster, homeSchedule, awaySchedule }) => {
+            const h2h = this.buildH2H(homeSchedule, awaySchedule, safeHome, safeAway).slice(0, 10);
+            return {
+              homeTeamDetail: homeDetail,
+              awayTeamDetail: awayDetail,
+              homeRoster: this.limitRoster(homeRoster),
+              awayRoster: this.limitRoster(awayRoster),
+              h2h,
+            } satisfies HockeyMatchExtras;
+          })
+        );
+      }),
+      catchError(() => of(empty))
+    );
+  }
+
+  getMatchSummary(league: string, eventId: string): Observable<HockeyMatchSummary | null> {
+    const summaryUrl = this.summaryUrl(league, eventId);
+
+    return this.http.get<any>(summaryUrl).pipe(
+      timeout(12000),
+      map((data) => {
+        const summary = this.mapMatchSummary(eventId, data);
+        if (summary) {
+          summary.source = 'summary';
+        }
+        return summary;
+      }),
       catchError((err) => {
         const status = typeof err?.status === 'number' ? err.status : undefined;
-        const url = err?.url ?? `${base}/summary?event=${eventId}`;
+        const url = err?.url ?? summaryUrl;
         const message = err?.error?.message ?? err?.message ?? 'Request failed.';
         const details = `${status === undefined ? 'status=?' : `status=${status}`} url=${url}`;
+
+        // Common CORS error in browsers comes as status=0. On Hosting/Spark we can't proxy, so fallback to scoreboard.
+        if (status === 0 || status === 401 || status === 403) {
+          return this.getBasicSummaryFromScoreboard(league, eventId);
+        }
+
         return throwError(() => new Error(`ESPN hockey summary failed (${details}): ${message}`));
+      })
+    );
+  }
+
+  private getBasicSummaryFromScoreboard(league: string, eventId: string): Observable<HockeyMatchSummary | null> {
+    return this.getScoreboard(league).pipe(
+      map((games) => games.find((g) => g.id === eventId) ?? null),
+      switchMap((game) => {
+        if (!game) {
+          return of(null);
+        }
+
+        const summary: HockeyMatchSummary = {
+          eventId,
+          date: game.date,
+          status: game.status,
+          detail: game.detail,
+          venue: game.venue,
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam,
+          homeScore: game.homeScore,
+          awayScore: game.awayScore,
+          teamStats: [],
+          playerStats: [],
+          officials: [],
+          source: 'scoreboard',
+          raw: game,
+        };
+
+        return of(summary);
       })
     );
   }
@@ -285,14 +427,17 @@ export class EspnHockeyService {
   }
 
   private buildScoreboardDates(): string[] {
-    const yesterday = new Date();
-    yesterday.setDate(yesterday.getDate() - 1);
-
     const today = new Date();
-    const tomorrow = new Date(today);
-    tomorrow.setDate(today.getDate() + 1);
+    const dates: Date[] = [];
 
-    return [yesterday, today, tomorrow].map((date) => this.toEspnDate(date));
+    // Include upcoming fixtures as well as recent games.
+    for (let offset = -1; offset <= 5; offset += 1) {
+      const date = new Date(today);
+      date.setDate(today.getDate() + offset);
+      dates.push(date);
+    }
+
+    return dates.map((date) => this.toEspnDate(date));
   }
 
   private toEspnDate(date: Date): string {
@@ -604,5 +749,105 @@ export class EspnHockeyService {
   private leagueBaseUrl(league: string): string {
     const safeLeague = league?.trim() || 'nhl';
     return `${ESPN_HOCKEY_BASE_URL}/${encodeURIComponent(safeLeague)}`;
+  }
+
+  private mapRoster(data: any): HockeyRosterPlayer[] {
+    const athletes = Array.isArray(data?.athletes)
+      ? data.athletes
+      : Array.isArray(data?.athletes?.[0]?.items)
+        ? data.athletes[0].items
+        : Array.isArray(data?.items)
+          ? data.items
+          : [];
+
+    return athletes
+      .map((row: any) => {
+        const athlete = row?.athlete ?? row;
+        const name = athlete?.displayName ?? athlete?.fullName ?? athlete?.shortName ?? row?.name;
+        if (!name) return null;
+
+        const jersey = athlete?.jersey?.toString?.() ?? row?.jersey?.toString?.();
+        const position =
+          athlete?.position?.abbreviation ??
+          athlete?.position?.name ??
+          row?.position?.abbreviation ??
+          row?.position?.name;
+
+        const id = athlete?.id?.toString?.();
+        return {
+          id,
+          name: String(name),
+          jersey: jersey ? String(jersey) : undefined,
+          position: position ? String(position) : undefined,
+        } satisfies HockeyRosterPlayer;
+      })
+      .filter(Boolean) as HockeyRosterPlayer[];
+  }
+
+  private mapScheduleAsGames(data: any, league: string): HockeyGame[] {
+    const events =
+      (Array.isArray(data?.events) ? data.events : null) ??
+      (Array.isArray(data?.items) ? data.items : null) ??
+      (Array.isArray(data?.schedule) ? data.schedule : null) ??
+      [];
+
+    if (!Array.isArray(events) || !events.length) {
+      // Some schedule responses nest the events deeper.
+      const nested =
+        data?.events?.[0]?.events ??
+        data?.schedule?.[0]?.events ??
+        data?.leagues?.[0]?.events ??
+        [];
+      if (Array.isArray(nested) && nested.length) {
+        return this.mapScoreboard({ events: nested }, league);
+      }
+
+      return [];
+    }
+
+    return this.mapScoreboard({ events }, league);
+  }
+
+  private findTeamByName(teams: HockeyTeam[], name: string): HockeyTeam | null {
+    const needle = this.normalizeName(name);
+    if (!needle) return null;
+
+    const exact = teams.find((t) => this.normalizeName(t.name) === needle);
+    if (exact) return exact;
+
+    const contains = teams.find((t) => this.normalizeName(t.name).includes(needle) || needle.includes(this.normalizeName(t.name)));
+    return contains ?? null;
+  }
+
+  private isPlayedGame(game: HockeyGame): boolean {
+    if (game.homeScore !== undefined || game.awayScore !== undefined) {
+      return true;
+    }
+
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('final') || normalized.includes('post');
+  }
+
+  private buildH2H(homeSchedule: HockeyGame[], awaySchedule: HockeyGame[], homeTeam: string, awayTeam: string): HockeyGame[] {
+    const homeNeedle = this.normalizeName(homeTeam);
+    const awayNeedle = this.normalizeName(awayTeam);
+
+    const all = [...homeSchedule, ...awaySchedule];
+    const unique = this.deduplicateGames(all);
+
+    const meetings = unique.filter((g) => {
+      const home = this.normalizeName(g.homeTeam);
+      const away = this.normalizeName(g.awayTeam);
+      return (home === homeNeedle && away === awayNeedle) || (home === awayNeedle && away === homeNeedle);
+    });
+
+    return meetings
+      .filter((g) => this.isPlayedGame(g))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  private limitRoster(players: HockeyRosterPlayer[]): HockeyRosterPlayer[] {
+    // Keep the UI responsive; rosters can be large.
+    return Array.isArray(players) ? players.slice(0, 40) : [];
   }
 }

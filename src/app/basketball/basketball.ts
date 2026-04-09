@@ -20,7 +20,7 @@ interface SportMatch {
 })
 export class Basketball implements OnInit {
   readonly pageTitle = 'Basketball Odds';
-  readonly subtitle = 'NBA odds from RapidAPI.';
+  readonly subtitle = 'Real bookmaker odds from The Odds API.';
 
   loading = true;
   error = '';

@@ -178,6 +178,7 @@
   color: #dce9ff;
   text-align: center;
   font-size: 0.86rem;
+  cursor: help;
 }
 
 .stat-val {
@@ -190,9 +191,63 @@
   text-align: right;
 }
 
+.stat-row.stat-head {
+  background: transparent;
+  border-style: dashed;
+  opacity: 0.9;
+}
+
+.stat-row.stat-head .stat-name,
+.stat-row.stat-head .stat-val {
+  color: #cfe0ff;
+  font-weight: 600;
+  font-size: 0.8rem;
+}
+
 .player-stats {
   display: grid;
   gap: 18px;
+}
+
+.cards-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.team-card {
+  border: 1px solid #314a72;
+  background: #16243c;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: 44px 1fr;
+  gap: 10px;
+  align-items: center;
+}
+
+.team-logo {
+  width: 44px;
+  height: 44px;
+  object-fit: contain;
+}
+
+.team-name {
+  margin: 0 0 6px;
+  color: #eff5ff;
+}
+
+.rosters {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 10px;
+}
+
+.roster-card {
+  border: 1px solid #314a72;
+  background: #16243c;
+  border-radius: 10px;
+  padding: 10px;
 }
 
 .player-team h4 {
@@ -279,4 +334,3 @@ th {
     align-items: flex-start;
   }
 }
-

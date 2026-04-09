@@ -1,6 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { catchError, forkJoin, map, Observable, throwError, timeout } from 'rxjs';
+import { catchError, forkJoin, map, Observable, of, switchMap, throwError, timeout } from 'rxjs';
 
 export interface SoccerGame {
   id: string;
@@ -49,6 +49,13 @@ export interface SoccerTeamDetail {
   color?: string;
   alternateColor?: string;
   logo?: string;
+}
+
+export interface SoccerRosterPlayer {
+  id?: string;
+  name: string;
+  position?: string;
+  jersey?: string;
 }
 
 export interface SoccerLineupPlayer {
@@ -112,7 +119,16 @@ export interface SoccerMatchSummary {
   teamStats: SoccerTeamStat[];
   playerStats: SoccerPlayerStatsTeam[];
   officials: SoccerOfficial[];
+  source?: 'summary' | 'scoreboard';
   raw: unknown;
+}
+
+export interface SoccerMatchExtras {
+  homeTeamDetail: SoccerTeamDetail | null;
+  awayTeamDetail: SoccerTeamDetail | null;
+  homeRoster: SoccerRosterPlayer[];
+  awayRoster: SoccerRosterPlayer[];
+  h2h: SoccerGame[];
 }
 
 const ESPN_SOCCER_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
@@ -264,6 +280,26 @@ const TEAM_RATINGS: Record<string, number> = {
 export class EspnSoccerService {
   constructor(private readonly http: HttpClient) {}
 
+  private isLocalDev(): boolean {
+    if (typeof location === 'undefined') {
+      return false;
+    }
+
+    const host = location.hostname;
+    return host === 'localhost' || host === '127.0.0.1' || location.port === '4200';
+  }
+
+  private summaryUrl(league: string, eventId: string): string {
+    const safeLeague = encodeURIComponent(league?.trim() || 'eng.1');
+    const safeEvent = encodeURIComponent(eventId);
+
+    if (this.isLocalDev()) {
+      return `/espn/apis/site/v2/sports/soccer/${safeLeague}/summary?event=${safeEvent}`;
+    }
+
+    return `${ESPN_SOCCER_BASE_URL}/${safeLeague}/summary?event=${safeEvent}`;
+  }
+
   getScoreboard(league: string): Observable<SoccerGame[]> {
     const dates = this.buildScoreboardDates();
     const requests = dates.map((date) =>
@@ -295,27 +331,125 @@ export class EspnSoccerService {
     );
   }
 
-  getMatchSummary(league: string, eventId: string): Observable<SoccerMatchSummary | null> {
-    // NOTE: ESPN "summary" endpoint often fails CORS. We route it through the local dev proxy (/espn -> site.api.espn.com).
-    // This keeps scoreboard/news/teams direct, but match details reliable during development.
-    const base = `/espn/apis/site/v2/sports/soccer/${encodeURIComponent(league)}`;
-    return this.http
-      .get<any>(`${base}/summary?event=${encodeURIComponent(eventId)}`)
-      .pipe(
-        timeout(12000),
-        map((data) => this.mapMatchSummary(eventId, data)),
-        catchError((err) => {
-          const status = typeof err?.status === 'number' ? err.status : undefined;
-          const url = err?.url ?? `${base}/summary?event=${eventId}`;
-          const message =
-            err?.error?.message ??
-            err?.message ??
-            'Request failed.';
+  getTeamRoster(league: string, teamId: string): Observable<SoccerRosterPlayer[]> {
+    return this.http.get<any>(`${ESPN_SOCCER_BASE_URL}/${encodeURIComponent(league)}/teams/${encodeURIComponent(teamId)}/roster`).pipe(
+      timeout(12000),
+      map((data) => this.mapRoster(data)),
+      catchError(() => of([]))
+    );
+  }
 
-          const details = `${status === undefined ? 'status=?' : `status=${status}`} url=${url}`;
-          return throwError(() => new Error(`ESPN match summary failed (${details}): ${message}`));
-        })
-      );
+  getTeamSchedule(league: string, teamId: string): Observable<SoccerGame[]> {
+    return this.http.get<any>(`${ESPN_SOCCER_BASE_URL}/${encodeURIComponent(league)}/teams/${encodeURIComponent(teamId)}/schedule`).pipe(
+      timeout(12000),
+      map((data) => this.mapScheduleAsGames(data, league)),
+      catchError(() => of([]))
+    );
+  }
+
+  getMatchExtras(league: string, homeTeamName: string, awayTeamName: string): Observable<SoccerMatchExtras> {
+    const empty: SoccerMatchExtras = {
+      homeTeamDetail: null,
+      awayTeamDetail: null,
+      homeRoster: [],
+      awayRoster: [],
+      h2h: [],
+    };
+
+    const safeHome = (homeTeamName ?? '').trim();
+    const safeAway = (awayTeamName ?? '').trim();
+    if (!safeHome || !safeAway) {
+      return of(empty);
+    }
+
+    return this.getTeams(league).pipe(
+      switchMap((teams) => {
+        const homeTeam = this.findTeamByName(teams, safeHome);
+        const awayTeam = this.findTeamByName(teams, safeAway);
+        if (!homeTeam?.id || !awayTeam?.id) {
+          return of(empty);
+        }
+
+        return forkJoin({
+          homeDetail: this.getTeam(league, homeTeam.id).pipe(catchError(() => of(null))),
+          awayDetail: this.getTeam(league, awayTeam.id).pipe(catchError(() => of(null))),
+          homeRoster: this.getTeamRoster(league, homeTeam.id),
+          awayRoster: this.getTeamRoster(league, awayTeam.id),
+          homeSchedule: this.getTeamSchedule(league, homeTeam.id),
+          awaySchedule: this.getTeamSchedule(league, awayTeam.id),
+        }).pipe(
+          map(({ homeDetail, awayDetail, homeRoster, awayRoster, homeSchedule, awaySchedule }) => {
+            const h2h = this.buildH2H(homeSchedule, awaySchedule, safeHome, safeAway).slice(0, 10);
+            return {
+              homeTeamDetail: homeDetail,
+              awayTeamDetail: awayDetail,
+              homeRoster: this.limitRoster(homeRoster),
+              awayRoster: this.limitRoster(awayRoster),
+              h2h,
+            } satisfies SoccerMatchExtras;
+          })
+        );
+      }),
+      catchError(() => of(empty))
+    );
+  }
+
+  getMatchSummary(league: string, eventId: string): Observable<SoccerMatchSummary | null> {
+    const summaryUrl = this.summaryUrl(league, eventId);
+
+    return this.http.get<any>(summaryUrl).pipe(
+      timeout(12000),
+      map((data) => {
+        const summary = this.mapMatchSummary(eventId, data);
+        if (summary) {
+          summary.source = 'summary';
+        }
+        return summary;
+      }),
+      catchError((err) => {
+        const status = typeof err?.status === 'number' ? err.status : undefined;
+        const url = err?.url ?? summaryUrl;
+        const message = err?.error?.message ?? err?.message ?? 'Request failed.';
+        const details = `${status === undefined ? 'status=?' : `status=${status}`} url=${url}`;
+
+        if (status === 0 || status === 401 || status === 403) {
+          return this.getBasicSummaryFromScoreboard(league, eventId);
+        }
+
+        return throwError(() => new Error(`ESPN match summary failed (${details}): ${message}`));
+      })
+    );
+  }
+
+  private getBasicSummaryFromScoreboard(league: string, eventId: string): Observable<SoccerMatchSummary | null> {
+    return this.getScoreboard(league).pipe(
+      map((games) => games.find((g) => g.id === eventId) ?? null),
+      switchMap((game) => {
+        if (!game) {
+          return of(null);
+        }
+
+        const summary: SoccerMatchSummary = {
+          eventId,
+          date: game.date,
+          status: game.status,
+          detail: game.detail,
+          venue: game.venue,
+          homeTeam: game.homeTeam,
+          awayTeam: game.awayTeam,
+          homeScore: game.homeScore,
+          awayScore: game.awayScore,
+          lineups: [],
+          teamStats: [],
+          playerStats: [],
+          officials: [],
+          source: 'scoreboard',
+          raw: game,
+        };
+
+        return of(summary);
+      })
+    );
   }
 
   private mapScoreboard(data: any, league: string): SoccerGame[] {
@@ -426,7 +560,9 @@ export class EspnSoccerService {
     const today = new Date();
     const dates: Date[] = [];
 
-    for (let offset = -5; offset <= 1; offset += 1) {
+    // Keep a small window around today, but include upcoming fixtures too.
+    // (Used by Home + Analyses pages.)
+    for (let offset = -1; offset <= 5; offset += 1) {
       const date = new Date(today);
       date.setDate(today.getDate() + offset);
       dates.push(date);
@@ -846,6 +982,112 @@ export class EspnSoccerService {
       alternateColor: team?.alternateColor,
       logo: team?.logos?.[0]?.href ?? team?.logos?.[0]?.url,
     };
+  }
+
+  private mapRoster(data: any): SoccerRosterPlayer[] {
+    const athletes = Array.isArray(data?.athletes)
+      ? data.athletes
+      : Array.isArray(data?.athletes?.[0]?.items)
+        ? data.athletes[0].items
+        : Array.isArray(data?.items)
+          ? data.items
+          : [];
+
+    return athletes
+      .map((row: any) => {
+        const athlete = row?.athlete ?? row;
+        const name = athlete?.displayName ?? athlete?.fullName ?? athlete?.shortName ?? row?.name;
+        if (!name) return null;
+
+        const jersey = athlete?.jersey?.toString?.() ?? row?.jersey?.toString?.();
+        const position =
+          athlete?.position?.abbreviation ??
+          athlete?.position?.name ??
+          row?.position?.abbreviation ??
+          row?.position?.name;
+
+        const id = athlete?.id?.toString?.();
+        return {
+          id,
+          name: String(name),
+          jersey: jersey ? String(jersey) : undefined,
+          position: position ? String(position) : undefined,
+        } satisfies SoccerRosterPlayer;
+      })
+      .filter(Boolean) as SoccerRosterPlayer[];
+  }
+
+  private mapScheduleAsGames(data: any, league: string): SoccerGame[] {
+    const events =
+      (Array.isArray(data?.events) ? data.events : null) ??
+      (Array.isArray(data?.items) ? data.items : null) ??
+      (Array.isArray(data?.schedule) ? data.schedule : null) ??
+      [];
+
+    if (!Array.isArray(events) || !events.length) {
+      const nested =
+        data?.events?.[0]?.events ??
+        data?.schedule?.[0]?.events ??
+        data?.leagues?.[0]?.events ??
+        [];
+
+      if (Array.isArray(nested) && nested.length) {
+        return this.mapScoreboard({ events: nested }, league);
+      }
+
+      return [];
+    }
+
+    return this.mapScoreboard({ events }, league);
+  }
+
+  private findTeamByName(teams: SoccerTeam[], name: string): SoccerTeam | null {
+    const needle = this.normalizeTeamName(name);
+    if (!needle) return null;
+
+    const exact = teams.find((t) => this.normalizeTeamName(t.name) === needle);
+    if (exact) return exact;
+
+    const contains = teams.find((t) => {
+      const normalized = this.normalizeTeamName(t.name);
+      return normalized.includes(needle) || needle.includes(normalized);
+    });
+    return contains ?? null;
+  }
+
+  private isPlayedGame(game: SoccerGame): boolean {
+    if (game.homeScore !== undefined || game.awayScore !== undefined) {
+      return true;
+    }
+
+    if (game.completed || game.state?.toLowerCase() === 'post') {
+      return true;
+    }
+
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('final') || normalized.includes('post') || normalized.includes('after');
+  }
+
+  private buildH2H(homeSchedule: SoccerGame[], awaySchedule: SoccerGame[], homeTeam: string, awayTeam: string): SoccerGame[] {
+    const homeNeedle = this.normalizeTeamName(homeTeam);
+    const awayNeedle = this.normalizeTeamName(awayTeam);
+
+    const all = [...homeSchedule, ...awaySchedule];
+    const unique = this.deduplicateGames(all);
+
+    const meetings = unique.filter((g) => {
+      const home = this.normalizeTeamName(g.homeTeam);
+      const away = this.normalizeTeamName(g.awayTeam);
+      return (home === homeNeedle && away === awayNeedle) || (home === awayNeedle && away === homeNeedle);
+    });
+
+    return meetings
+      .filter((g) => this.isPlayedGame(g))
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime());
+  }
+
+  private limitRoster(players: SoccerRosterPlayer[]): SoccerRosterPlayer[] {
+    return Array.isArray(players) ? players.slice(0, 40) : [];
   }
 
   private toScore(value: any): number | undefined {

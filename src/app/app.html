@@ -10,6 +10,7 @@
 
     <nav class="main-nav" aria-label="Main navigation">
       <a routerLink="/" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }">Home</a>
+      <a routerLink="/analysis" routerLinkActive="active">Analyses</a>
       <a routerLink="/football" routerLinkActive="active">Football</a>
       <a routerLink="/hockey" routerLinkActive="active">Hockey</a>
       <a routerLink="/tennis" routerLinkActive="active">Tennis</a>
@@ -40,6 +41,8 @@
             <span>{{ currentUser()?.email }}</span>
             <button type="button" class="ghost-btn" (click)="logout()">Logout</button>
           </div>
+        } @else if (authConfigError()) {
+          <p class="account-message">{{ authConfigError() }}</p>
         } @else {
           <div class="auth-switch">
             <button

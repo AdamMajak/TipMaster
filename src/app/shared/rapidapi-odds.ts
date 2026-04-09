@@ -1,6 +1,8 @@
+import { rapidApiKey } from './rapidapi.config.local';
+
 export const RAPIDAPI_ODDS_HOST = 'betfair-orbitexch-data.p.rapidapi.com';
 export const RAPIDAPI_ODDS_BASE_URL = 'https://betfair-orbitexch-data.p.rapidapi.com';
-export const RAPIDAPI_ODDS_KEY = 'e11945a84fmshcc603e1767ab7d7p1d6e29jsn34c89d4dc630';
+export const RAPIDAPI_ODDS_KEY = rapidApiKey;
 
 export const SPORT_KEYS = {
   soccer: 'soccer',

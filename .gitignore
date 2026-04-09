@@ -10,6 +10,7 @@
 /node_modules
 npm-debug.log
 yarn-error.log
+/.npm-cache/
 
 # IDEs and editors
 .idea/
@@ -45,3 +46,6 @@ Thumbs.db
 
 # Local Firebase config
 src/app/shared/firebase.config.local.ts
+
+# Local RapidAPI config (do not commit keys)
+src/app/shared/rapidapi.config.local.ts

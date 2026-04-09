@@ -1,7 +1,7 @@
 import { Injectable } from '@angular/core';
-import { HttpClient, HttpHeaders } from '@angular/common/http';
-import { catchError, map, Observable, of, startWith, timeout } from 'rxjs';
-import { RAPIDAPI_ODDS_BASE_URL, RAPIDAPI_ODDS_HOST, RAPIDAPI_ODDS_KEY } from './rapidapi-odds';
+import { HttpClient } from '@angular/common/http';
+import { catchError, forkJoin, map, Observable, of, shareReplay, startWith, switchMap, throwError, timeout } from 'rxjs';
+import { oddsApiKey } from './rapidapi.config.local';
 
 export interface OddsSport {
   key: string;
@@ -37,97 +37,126 @@ export interface OddsEvent {
   bookmakers: OddsBookmaker[];
 }
 
-interface BetfairSportEvent {
-  sport: string;
-  liga: string;
-  eventId: string;
-  team1: string;
-  team2: string;
-  startTime: number;
-  marketsCount: number;
-  totalMatched: number;
-}
-
 @Injectable({ providedIn: 'root' })
 export class OddsService {
   constructor(private readonly http: HttpClient) {}
 
+  private sports$?: Observable<OddsSport[]>;
+
+  private get apiKey(): string {
+    return (oddsApiKey ?? '').trim();
+  }
+
+  private getOddsApiSports(forceRefresh = false): Observable<OddsSport[]> {
+    if (forceRefresh) {
+      this.sports$ = undefined;
+    }
+
+    if (!this.sports$) {
+      const apiKey = this.apiKey;
+      if (!apiKey) {
+        this.sports$ = of([]);
+      } else {
+        this.sports$ = this.http
+          .get<OddsSport[]>(`https://api.the-odds-api.com/v4/sports`, {
+            params: { apiKey },
+          })
+          .pipe(
+            timeout(8000),
+            catchError(() => of([])),
+            shareReplay({ bufferSize: 1, refCount: true })
+          );
+      }
+    }
+
+    return this.sports$;
+  }
+
   getSports(): Observable<OddsSport[]> {
-    return of([
+    const fallback = of([
       this.toSport('tennis', 'Tennis'),
       this.toSport('soccer', 'Football'),
       this.toSport('hockey', 'Hockey'),
+      this.toSport('basketball', 'Basketball'),
+      this.toSport('baseball', 'Baseball'),
+      this.toSport('mma', 'MMA'),
     ]);
+
+    if (!this.apiKey) {
+      return fallback;
+    }
+
+    return this.getOddsApiSports().pipe(
+      map((sports) => (sports.length ? sports : [])),
+      map(() => [
+        this.toSport('tennis', 'Tennis'),
+        this.toSport('soccer', 'Football'),
+        this.toSport('hockey', 'Hockey'),
+        this.toSport('basketball', 'Basketball'),
+        this.toSport('baseball', 'Baseball'),
+        this.toSport('mma', 'MMA'),
+      ]),
+      catchError(() => fallback)
+    );
   }
 
   getOddsBySport(sportKey: string): Observable<OddsEvent[]> {
-    const fallback = this.getFallbackEvents(sportKey);
-    return this.http
-      .get<BetfairSportEvent[]>(`${RAPIDAPI_ODDS_BASE_URL}/betfair/get_sport_events/${sportKey}`, {
-        headers: this.headers,
-      })
-      .pipe(
-        timeout(3000),
-        map((events) => this.mapEvents(events)),
-        map((events) => (events.length ? events : fallback)),
-        catchError(() => of(fallback)),
-        startWith(fallback)
+    const apiKey = this.apiKey;
+    if (!apiKey) {
+      return throwError(
+        () =>
+          new Error(
+            'Missing Odds API key. Set `oddsApiKey` in `src/app/shared/rapidapi.config.local.ts` to load real odds.'
+          )
       );
+    }
+
+    return this.pickLeagueKeys(sportKey).pipe(
+      switchMap((leagueKeys) => {
+        if (!leagueKeys.length) {
+          return of([] as OddsEvent[]);
+        }
+
+        const requests = leagueKeys.map((leagueKey) =>
+          this.http
+            .get<OddsEvent[]>(`https://api.the-odds-api.com/v4/sports/${encodeURIComponent(leagueKey)}/odds`, {
+              params: {
+                apiKey,
+                regions: 'eu',
+                markets: 'h2h',
+                oddsFormat: 'decimal',
+                dateFormat: 'iso',
+              },
+            })
+            .pipe(
+              timeout(8000),
+              catchError(() => of([] as OddsEvent[])),
+              map((events) => this.normalizeEvents(sportKey, leagueKey, events))
+            )
+        );
+
+        return forkJoin(requests).pipe(map((parts) => parts.flat()));
+      }),
+      catchError(() => of([] as OddsEvent[])),
+      startWith([] as OddsEvent[])
+    );
   }
 
-  private mapEvents(events?: BetfairSportEvent[]): OddsEvent[] {
+  private normalizeEvents(sportKey: string, leagueKey: string, events: OddsEvent[]): OddsEvent[] {
+    const title = this.toTitle(sportKey);
     return (events ?? []).map((event) => ({
-      id: event.eventId,
-      sport_key: event.sport,
-      sport_title: this.toTitle(event.sport),
-      commence_time: new Date(event.startTime).toISOString(),
-      home_team: event.team1 || 'Team 1',
-      away_team: event.team2 || 'Team 2',
-      bookmakers: [
-        {
-          key: 'betfair-exchange',
-          title: event.liga || 'Betfair',
-          markets: [
-            {
-              key: 'h2h',
-              outcomes: this.buildOutcomes(event),
-            },
-          ],
-        },
-      ],
+      ...event,
+      id: `${leagueKey}:${event.id}`,
+      sport_key: sportKey,
+      sport_title: title,
     }));
-  }
-
-  private buildOutcomes(event: BetfairSportEvent): OddsOutcome[] {
-    if (event.sport === 'soccer') {
-      return [
-        { name: '1', price: this.makePrice(`${event.eventId}-1`, 1.35, 3.95) },
-        { name: 'X', price: this.makePrice(`${event.eventId}-X`, 2.65, 4.65) },
-        { name: '2', price: this.makePrice(`${event.eventId}-2`, 1.35, 3.95) },
-      ];
-    }
-
-    return [
-      { name: '1', price: this.makePrice(`${event.eventId}-1`, 1.25, 4.25) },
-      { name: '2', price: this.makePrice(`${event.eventId}-2`, 1.25, 4.25) },
-    ];
-  }
-
-  private makePrice(seed: string, min: number, max: number): number {
-    let hash = 0;
-    for (let i = 0; i < seed.length; i += 1) {
-      hash = (hash * 31 + seed.charCodeAt(i)) % 1000003;
-    }
-    const normalized = (hash % 1000) / 1000;
-    const value = min + normalized * (max - min);
-    return Math.round(value * 100) / 100;
   }
 
   private toSport(key: string, title: string): OddsSport {
     return {
       key,
       title,
-      group: 'betfair-orbitexch-data',
+      group: 'odds-api',
       active: true,
       has_outrights: false,
     };
@@ -140,88 +169,102 @@ export class OddsService {
     return value.charAt(0).toUpperCase() + value.slice(1).replace(/[-_]/g, ' ');
   }
 
-  private getFallbackEvents(sportKey: string): OddsEvent[] {
+  private pickLeagueKeys(sportKey: string): Observable<string[]> {
+    const max = this.maxLeaguesForSport(sportKey);
+
+    return this.getOddsApiSports().pipe(
+      map((sports) =>
+        sports.filter((s) => s.active && !s.has_outrights && this.matchesGroup(sportKey, s.group))
+      ),
+      map((sports) => this.prioritizeLeagues(sportKey, sports).slice(0, max).map((s) => s.key)),
+      catchError(() => of([]))
+    );
+  }
+
+  private maxLeaguesForSport(sportKey: string): number {
     switch (sportKey) {
       case 'soccer':
       case 'football':
-        return [
-          this.buildFallbackEvent(sportKey, 1, 'Wrexham', 'Swansea City', 20, 0),
-          this.buildFallbackEvent(sportKey, 2, 'Colchester United', 'Crawley Town', 19, 45),
-          this.buildFallbackEvent(sportKey, 3, 'Monchengladbach', 'St Pauli', 19, 30),
-          this.buildFallbackEvent(sportKey, 4, 'Morton', 'Partick Thistle', 19, 45),
-        ];
+        return 6;
       case 'hockey':
-        return [
-          this.buildFallbackEvent(sportKey, 1, 'Edmonton Oilers', 'St Louis Blues', 20, 0),
-        ];
+        return 3;
       case 'tennis':
-        return [
-          this.buildFallbackEvent(sportKey, 1, 'WTA SF1 Player A', 'WTA SF1 Player B', 19, 0),
-          this.buildFallbackEvent(sportKey, 2, 'WTA SF2 Player A', 'WTA SF2 Player B', 21, 0),
-        ];
+        return 3;
+      case 'basketball':
+      case 'baseball':
+      case 'mma':
+        return 2;
+      default:
+        return 2;
+    }
+  }
+
+  private matchesGroup(sportKey: string, group: string): boolean {
+    const normalized = (group ?? '').toLowerCase();
+    switch (sportKey) {
+      case 'soccer':
+      case 'football':
+        return normalized.includes('soccer');
+      case 'hockey':
+        return normalized.includes('ice hockey') || normalized.includes('hockey');
+      case 'tennis':
+        return normalized.includes('tennis');
+      case 'basketball':
+        return normalized.includes('basketball');
+      case 'baseball':
+        return normalized.includes('baseball');
+      case 'mma':
+        return normalized.includes('mma') || normalized.includes('martial') || normalized.includes('boxing');
+      default:
+        return false;
+    }
+  }
+
+  private prioritizeLeagues(sportKey: string, sports: OddsSport[]): OddsSport[] {
+    const priorities = this.priorityTitlesForSport(sportKey);
+    if (!priorities.length) {
+      return sports;
+    }
+
+    const byScore = [...sports].sort((a, b) => {
+      const aScore = this.priorityScore(a.title, priorities);
+      const bScore = this.priorityScore(b.title, priorities);
+      if (aScore !== bScore) return bScore - aScore;
+      return a.title.localeCompare(b.title);
+    });
+
+    return byScore;
+  }
+
+  private priorityTitlesForSport(sportKey: string): string[] {
+    switch (sportKey) {
+      case 'soccer':
+      case 'football':
+        return ['Premier League', 'La Liga', 'Serie A', 'Bundesliga', 'Ligue 1', 'Champions', 'Europa'];
+      case 'hockey':
+        return ['NHL', 'KHL', 'SHL', 'Liiga', 'AHL'];
+      case 'tennis':
+        return ['ATP', 'WTA'];
+      case 'basketball':
+        return ['NBA', 'Euroleague'];
+      case 'baseball':
+        return ['MLB'];
+      case 'mma':
+        return ['UFC'];
       default:
         return [];
     }
   }
 
-  private buildFallbackEvent(
-    sportKey: string,
-    index: number,
-    home: string,
-    away: string,
-    hour: number,
-    minute: number
-  ): OddsEvent {
-    const seed = `fallback-${sportKey}-${index}`;
-    const outcomes = this.buildFallbackOutcomes(sportKey, seed);
-
-    return {
-      id: seed,
-      sport_key: sportKey,
-      sport_title: this.toTitle(sportKey),
-      commence_time: this.todayAt(hour, minute),
-      home_team: home,
-      away_team: away,
-      bookmakers: [
-        {
-          key: 'tipmaster-fallback',
-          title: 'TipMaster',
-          markets: [
-            {
-              key: 'h2h',
-              outcomes,
-            },
-          ],
-        },
-      ],
-    };
-  }
-
-  private buildFallbackOutcomes(sportKey: string, seed: string): OddsOutcome[] {
-    if (sportKey === 'soccer' || sportKey === 'football') {
-      return [
-        { name: '1', price: this.makePrice(`${seed}-1`, 1.4, 3.6) },
-        { name: 'X', price: this.makePrice(`${seed}-X`, 2.8, 4.4) },
-        { name: '2', price: this.makePrice(`${seed}-2`, 1.4, 3.6) },
-      ];
-    }
-
-    return [
-      { name: '1', price: this.makePrice(`${seed}-1`, 1.3, 3.2) },
-      { name: '2', price: this.makePrice(`${seed}-2`, 1.3, 3.2) },
-    ];
-  }
-
-  private todayAt(hour: number, minute: number): string {
-    const date = new Date();
-    date.setHours(hour, minute, 0, 0);
-    return date.toISOString();
-  }
-
-  private get headers(): HttpHeaders {
-    return new HttpHeaders({
-      'x-rapidapi-host': RAPIDAPI_ODDS_HOST,
-      'x-rapidapi-key': RAPIDAPI_ODDS_KEY,
+  private priorityScore(title: string, priorities: string[]): number {
+    const t = (title ?? '').toLowerCase();
+    let score = 0;
+    priorities.forEach((p, idx) => {
+      if (!p) return;
+      if (t.includes(p.toLowerCase())) {
+        score += 100 - idx;
+      }
     });
+    return score;
   }
 }

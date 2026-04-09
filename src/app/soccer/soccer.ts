@@ -20,7 +20,7 @@ interface SportMatch {
 })
 export class Soccer implements OnInit {
   readonly pageTitle = 'Soccer Odds';
-  readonly subtitle = 'EPL, La Liga, Serie A and more from RapidAPI.';
+  readonly subtitle = 'Real bookmaker odds from The Odds API (decimal format).';
 
   loading = true;
   error = '';
