@@ -1,35 +1,70 @@
 <section class="analysis-page">
   <header class="analysis-hero">
-    <div>
+    <div class="hero-copy">
+      <span class="eyebrow">TipMaster Lab</span>
       <h2>Analyses</h2>
-      <p class="lead">Pick matches, write your take, and rate community analyses.</p>
+      <p class="lead">Build sharper reads, track your confidence, and rate the strongest takes from the community.</p>
+
+      <div class="hero-stats">
+        <article>
+          <span>Matches live</span>
+          <strong>{{ filteredMatches.length }}</strong>
+        </article>
+        <article>
+          <span>Selected</span>
+          <strong>{{ selectedCount() }}</strong>
+        </article>
+        <article>
+          <span>My cards</span>
+          <strong>{{ myAnalyses().length }}</strong>
+        </article>
+        <article>
+          <span>Community</span>
+          <strong>{{ communityAnalyses().length }}</strong>
+        </article>
+      </div>
     </div>
+
     <div class="hero-tools">
-      <label class="inline-label">
-        Date
-        <input type="date" name="analysisDateTop" [(ngModel)]="analysisDate" />
-      </label>
-      <button type="button" class="action ghost" (click)="reloadMatches()" [disabled]="loadingMatches">
-        Refresh matches
-      </button>
+      <div class="hero-tool-card">
+        <label class="inline-label">
+          Analysis date
+          <input type="date" name="analysisDateTop" [(ngModel)]="analysisDate" />
+        </label>
+        <button type="button" class="action ghost" (click)="reloadMatches()" [disabled]="loadingMatches">
+          {{ loadingMatches ? 'Refreshing...' : 'Refresh matches' }}
+        </button>
+      </div>
+
+      <div class="hero-note">
+        <strong>Match pool</strong>
+        <span>
+          @if (showingDemoMatches) {
+            Demo source active
+          } @else {
+            Live source active
+          }
+        </span>
+      </div>
     </div>
   </header>
 
-  <section class="panel">
+  <section class="panel create-panel">
     <header class="panel-head">
       <div>
+        <span class="section-kicker">Compose</span>
         <h3>Create analysis</h3>
-        <p class="lead">Select one or more matches (or use a custom label) and add your write-up.</p>
+        <p class="lead">Choose fixtures, lock your pick, and turn your reasoning into a clean card.</p>
       </div>
       <span class="pill">New</span>
     </header>
 
     @if (errorMatches) {
-      <p class="lead" [class.error]="!showingDemoMatches">{{ errorMatches }}</p>
+      <p class="status-banner" [class.error]="!showingDemoMatches">{{ errorMatches }}</p>
     }
 
     @if (!isAuthenticated()) {
-      <p class="lead">Login first to create analyses.</p>
+      <p class="lead empty-state">Login first to create analyses.</p>
     } @else {
       <form class="analysis-form" (ngSubmit)="addAnalysis()">
         <div class="form-row">
@@ -55,18 +90,21 @@
         </div>
 
         <div class="picker-grid">
-          <div class="picker-list">
+          <div class="picker-surface picker-list">
             <div class="picker-title">
-              <strong>Matches</strong>
+              <div>
+                <strong>Available matches</strong>
+                <p class="mini-copy">Use search or sport filter to narrow the board.</p>
+              </div>
               @if (loadingMatches) {
-                <span class="muted">Loading…</span>
+                <span class="muted">Loading...</span>
               } @else {
-                <span class="muted">{{ filteredMatches.length }} shown</span>
+                <span class="count-chip">{{ filteredMatches.length }} shown</span>
               }
             </div>
 
             @if (!loadingMatches && !filteredMatches.length) {
-              <p class="lead muted">No matches for the current filter.</p>
+              <p class="lead muted empty-state">No matches for the current filter.</p>
             } @else {
               <div class="match-list">
                 @for (match of filteredMatches; track match.id) {
@@ -82,7 +120,7 @@
                     </div>
                     <div class="match-meta">
                       <span>{{ match.sportTitle }}</span>
-                      <span>·</span>
+                      <span class="dot"></span>
                       <span>{{ match.competition }}</span>
                       @if (match.synthetic) {
                         <span class="badge">demo</span>
@@ -94,78 +132,84 @@
             }
           </div>
 
-          <div class="picker-selected">
+          <div class="picker-surface picker-selected">
             <div class="picker-title">
-              <strong>Selected</strong>
-              <span class="muted">{{ selectedCount() }} selected</span>
-              @if (selectedCount()) {
-                <button type="button" class="ghost-btn" (click)="clearSelected()">Clear</button>
-              }
+              <div>
+                <strong>Selected ticket</strong>
+                <p class="mini-copy">Build one focused pick or a grouped multi-match note.</p>
+              </div>
+              <span class="count-chip">{{ selectedCount() }} selected</span>
             </div>
 
             @if (!selectedCount()) {
-              <p class="lead muted">Click a match to add it here.</p>
+              <p class="lead muted empty-state">Click a match to add it here.</p>
             } @else {
               <div class="selected-list">
                 @for (match of selectedMatches; track match.id) {
                   <div class="selected-item">
                     <div>
                       <strong>{{ formatMatch(match) }}</strong>
-                      <small>{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} · {{ match.competition }}</small>
+                      <small>{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} • {{ match.competition }}</small>
                     </div>
                     <button type="button" class="ghost-btn" (click)="removeSelected(match.id)">Remove</button>
                   </div>
                 }
               </div>
             }
+
+            @if (selectedCount()) {
+              <button type="button" class="ghost-btn clear-btn" (click)="clearSelected()">Clear selection</button>
+            }
           </div>
         </div>
 
-        <label>
-          Custom label (optional)
-          <input
-            type="text"
-            name="matchLabel"
-            [(ngModel)]="matchLabel"
-            [disabled]="selectedCount() > 0"
-            placeholder="Used only when nothing is selected"
-          />
-        </label>
-
-        <label>
-          Title
-          <input type="text" name="title" [(ngModel)]="title" placeholder="Short title" />
-        </label>
-
-        <label>
-          Analysis
-          <textarea rows="5" name="summary" [(ngModel)]="summary" placeholder="Your reasoning, form, trend..."></textarea>
-        </label>
-
-        <div class="form-row">
+        <div class="form-shell">
           <label>
-            Pick
-            @if (selectedCount() !== 1) {
-              <select name="pickDisabled" [ngModel]="''" [ngModelOptions]="{ standalone: true }" disabled>
-                <option value="">Select exactly 1 match to pick</option>
-              </select>
-            } @else {
-              <select name="pick" [(ngModel)]="pick">
-                <option value="">No pick</option>
-                @for (option of pickOptions(); track option.value) {
-                  <option [value]="option.value">{{ option.label }}</option>
-                }
-              </select>
-            }
+            Custom label (optional)
+            <input
+              type="text"
+              name="matchLabel"
+              [(ngModel)]="matchLabel"
+              [disabled]="selectedCount() > 0"
+              placeholder="Used only when nothing is selected"
+            />
           </label>
+
           <label>
-            Confidence (1-5)
-            <input type="number" min="1" max="5" step="1" name="confidence" [(ngModel)]="confidence" />
+            Title
+            <input type="text" name="title" [(ngModel)]="title" placeholder="Short title" />
           </label>
+
+          <label>
+            Analysis
+            <textarea rows="5" name="summary" [(ngModel)]="summary" placeholder="Your reasoning, form, trend..."></textarea>
+          </label>
+
+          <div class="form-row">
+            <label>
+              Pick
+              @if (selectedCount() !== 1) {
+                <select name="pickDisabled" [ngModel]="''" [ngModelOptions]="{ standalone: true }" disabled>
+                  <option value="">Select exactly 1 match to pick</option>
+                </select>
+              } @else {
+                <select name="pick" [(ngModel)]="pick">
+                  <option value="">No pick</option>
+                  @for (option of pickOptions(); track option.value) {
+                    <option [value]="option.value">{{ option.label }}</option>
+                  }
+                </select>
+              }
+            </label>
+            <label>
+              Confidence (1-5)
+              <input type="number" min="1" max="5" step="1" name="confidence" [(ngModel)]="confidence" />
+            </label>
+          </div>
         </div>
 
         @if (formMessage) {
-          <p class="lead error">{{ formMessage }}</p>
+          <p class="status-banner error">{{ formMessage }}</p>
         }
 
         <button type="submit" class="action primary">Add analysis</button>
@@ -176,6 +220,7 @@
   <section class="panel">
     <header class="panel-head">
       <div>
+        <span class="section-kicker">Personal board</span>
         <h3>My analyses</h3>
         <p class="lead">
           @if (isAdmin()) {
@@ -189,30 +234,38 @@
     </header>
 
     @if (!isAuthenticated()) {
-      <p class="lead">Login to see and manage your analyses.</p>
+      <p class="lead empty-state">Login to see and manage your analyses.</p>
     } @else if (!myAnalyses().length) {
-      <p class="lead muted">No analyses yet for this date.</p>
+      <p class="lead muted empty-state">No analyses yet for this date.</p>
     } @else {
       <div class="analysis-grid">
         @for (item of myAnalyses(); track item.id) {
           <article class="analysis-card user">
             <div class="analysis-top">
-              <strong>{{ item.title }}</strong>
+              <div class="analysis-title-block">
+                <span class="card-tag">My take</span>
+                <strong>{{ item.title }}</strong>
+              </div>
               <span>{{ item.kickoff ? (item.kickoff | date: 'EEE d MMM, HH:mm') : (item.createdAt | date: 'EEE d MMM, HH:mm') }}</span>
             </div>
             <p class="analysis-meta">{{ item.matchLabel }}</p>
             <p class="analysis-text">{{ item.summary }}</p>
+
+            <div class="metric-row">
+              <span class="metric-pill">Tip <b>{{ item.pick || '-' }}</b></span>
+              <span class="metric-pill">Confidence <b>{{ item.confidence || '-' }}/5</b></span>
+              <span class="metric-pill">Rating <b>{{ averageStars(item) }}/5</b></span>
+            </div>
+
+            @if (item.relatedMatches?.length) {
+              <p class="analysis-meta">Matches: {{ relatedMatchesLabel(item) }}</p>
+            }
+
             <div class="analysis-footer">
-              <span>Tip: <b>{{ item.pick || '-' }}</b></span>
-              <span>Confidence: <b>{{ item.confidence || '-' }}/5</b></span>
-              <span>Rating: <b>{{ averageStars(item) }}/5</b></span>
               @if (canDeleteAnalysis(item)) {
                 <button type="button" class="ghost-btn danger" (click)="removeAnalysis(item.id)">Delete</button>
               }
             </div>
-            @if (item.relatedMatches?.length) {
-              <p class="analysis-meta">Matches: {{ relatedMatchesLabel(item) }}</p>
-            }
           </article>
         }
       </div>
@@ -222,42 +275,68 @@
   <section class="panel">
     <header class="panel-head">
       <div>
+        <span class="section-kicker">Community pulse</span>
         <h3>Community</h3>
-        <p class="lead">Analyses by other users for the same date (stored locally for now).</p>
+        <p class="lead">Analyses by other users for the same date, with a cleaner rating workflow and review feed.</p>
       </div>
       <span class="pill">Rate</span>
     </header>
 
     @if (!communityAnalyses().length) {
-      <p class="lead muted">No community analyses for this date yet.</p>
+      <p class="lead muted empty-state">No community analyses for this date yet.</p>
     } @else {
       <div class="analysis-grid">
         @for (item of communityAnalyses(); track item.id) {
-          <article class="analysis-card user">
+          <article class="analysis-card community-card">
             <div class="analysis-top">
-              <strong>{{ item.title }}</strong>
+              <div class="analysis-title-block">
+                <span class="card-tag accent">{{ item.authorName }}</span>
+                <strong>{{ item.title }}</strong>
+              </div>
               <span>{{ item.kickoff ? (item.kickoff | date: 'EEE d MMM, HH:mm') : (item.createdAt | date: 'EEE d MMM, HH:mm') }}</span>
             </div>
             <p class="analysis-meta">{{ item.matchLabel }}</p>
             <p class="analysis-text">{{ item.summary }}</p>
-            <div class="analysis-footer">
-              <span>Author: <b>{{ item.authorName }}</b></span>
-              <span>Tip: <b>{{ item.pick || '-' }}</b></span>
-              <span>Confidence: <b>{{ item.confidence || '-' }}/5</b></span>
-              <span>Avg rating: <b>{{ averageStars(item) }}/5</b></span>
-              <span>Reviews: <b>{{ item.ratings.length }}</b></span>
-              @if (canDeleteAnalysis(item)) {
-                <button type="button" class="ghost-btn danger" (click)="removeAnalysis(item.id)">Delete</button>
-              }
+
+            <div class="metric-row">
+              <span class="metric-pill">Tip <b>{{ item.pick || '-' }}</b></span>
+              <span class="metric-pill">Confidence <b>{{ item.confidence || '-' }}/5</b></span>
+              <span class="metric-pill">Avg rating <b>{{ averageStars(item) }}/5</b></span>
+              <span class="metric-pill">Reviews <b>{{ item.ratings.length }}</b></span>
             </div>
+
             @if (item.relatedMatches?.length) {
               <p class="analysis-meta">Matches: {{ relatedMatchesLabel(item) }}</p>
             }
 
+            <div class="analysis-footer">
+              @if (canDeleteAnalysis(item)) {
+                <button type="button" class="ghost-btn danger" (click)="removeAnalysis(item.id)">Delete</button>
+              }
+            </div>
+
+            @if (item.ratings.length) {
+              <div class="rating-list">
+                @for (rating of item.ratings; track rating.authorId) {
+                  <article class="rating-card">
+                    <div class="rating-head">
+                      <strong>{{ rating.authorName }}</strong>
+                      <span>{{ rating.stars }}/5</span>
+                    </div>
+                    @if (rating.comment) {
+                      <p>{{ rating.comment }}</p>
+                    } @else {
+                      <p class="muted">No written comment.</p>
+                    }
+                  </article>
+                }
+              </div>
+            }
+
             @if (!isAuthenticated()) {
-              <p class="lead muted">Login to add your rating.</p>
+              <p class="lead muted empty-state">Login to add your rating.</p>
             } @else if (!canRateAnalysis(item)) {
-              <p class="lead muted">
+              <p class="lead muted empty-state">
                 @if (currentUser()?.disabled) {
                   Your account is blocked, rating is disabled.
                 } @else {
