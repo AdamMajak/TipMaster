@@ -134,6 +134,13 @@
   gap: 8px;
 }
 
+.account-user-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 .account-user strong {
   color: #f1f6ff;
 }
@@ -190,6 +197,157 @@
   margin: 10px 0 0;
   color: #ffcf96;
   font-size: 0.84rem;
+}
+
+.role-pill,
+.status-pill {
+  display: inline-flex;
+  align-items: center;
+  border-radius: 999px;
+  padding: 3px 8px;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.role-pill {
+  background: rgba(240, 165, 58, 0.18);
+  border: 1px solid rgba(240, 165, 58, 0.35);
+  color: #ffd89e;
+}
+
+.role-pill.muted {
+  background: rgba(63, 95, 139, 0.22);
+  border-color: rgba(89, 125, 177, 0.35);
+  color: #d6e4ff;
+}
+
+.status-pill.active {
+  background: rgba(78, 191, 121, 0.16);
+  border: 1px solid rgba(78, 191, 121, 0.32);
+  color: #d8ffe7;
+}
+
+.status-pill.blocked {
+  background: rgba(255, 120, 120, 0.16);
+  border: 1px solid rgba(255, 120, 120, 0.32);
+  color: #ffd7d7;
+}
+
+.status-pill.self {
+  background: rgba(105, 163, 255, 0.16);
+  border: 1px solid rgba(105, 163, 255, 0.32);
+  color: #dce9ff;
+}
+
+.admin-panel {
+  margin-top: 14px;
+  border-top: 1px solid #2b4368;
+  padding-top: 12px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-panel-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.admin-panel-head h4,
+.admin-panel-head p {
+  margin: 0;
+}
+
+.admin-panel-head p {
+  margin-top: 4px;
+  color: #9fb5d8;
+  font-size: 0.8rem;
+}
+
+.admin-user-list {
+  display: grid;
+  gap: 10px;
+}
+
+.admin-invite {
+  display: grid;
+  gap: 8px;
+}
+
+.admin-invite label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.82rem;
+  color: #9fb5d8;
+}
+
+.admin-invite input {
+  border: 1px solid #3f5f8b;
+  background: #16243c;
+  color: #e8f0ff;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.admin-message {
+  margin-top: 0;
+}
+
+.admin-user-card {
+  border: 1px solid #314a72;
+  background: #14253f;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  gap: 10px;
+}
+
+.admin-user-meta {
+  display: grid;
+  gap: 4px;
+}
+
+.admin-user-name {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.admin-user-meta strong {
+  color: #f1f6ff;
+}
+
+.admin-user-meta span,
+.admin-user-meta small {
+  color: #9fb5d8;
+}
+
+.admin-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.ghost-btn.warn {
+  border-color: rgba(255, 193, 102, 0.35);
+  color: #ffe1b0;
+}
+
+.ghost-btn.danger {
+  border-color: rgba(255, 120, 120, 0.32);
+  color: #ffd7d7;
+}
+
+.ghost-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.admin-note {
+  color: #9fb5d8;
+  font-size: 0.76rem;
 }
 
 .betslip-header {

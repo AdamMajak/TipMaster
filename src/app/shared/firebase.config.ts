@@ -1,5 +1,6 @@
 import { initializeApp, type FirebaseApp, type FirebaseOptions } from 'firebase/app';
 import { getAuth, type Auth } from 'firebase/auth';
+import { getFirestore, type Firestore } from 'firebase/firestore';
 import { firebaseConfigValues } from './firebase.config.local';
 
 function hasRequiredFirebaseConfig(config: FirebaseOptions): boolean {
@@ -12,3 +13,4 @@ export const firebaseInitError: string | null = hasRequiredFirebaseConfig(fireba
 
 export const firebaseApp: FirebaseApp | null = firebaseInitError ? null : initializeApp(firebaseConfigValues);
 export const firebaseAuth: Auth | null = firebaseApp ? getAuth(firebaseApp) : null;
+export const firebaseDb: Firestore | null = firebaseApp ? getFirestore(firebaseApp) : null;

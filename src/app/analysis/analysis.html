@@ -177,7 +177,13 @@
     <header class="panel-head">
       <div>
         <h3>My analyses</h3>
-        <p class="lead">Only your analyses for the selected date.</p>
+        <p class="lead">
+          @if (isAdmin()) {
+            Your analyses for the selected date. As admin, you can also remove any analysis below.
+          } @else {
+            Only your analyses for the selected date.
+          }
+        </p>
       </div>
       <span class="pill">My</span>
     </header>
@@ -200,7 +206,9 @@
               <span>Tip: <b>{{ item.pick || '-' }}</b></span>
               <span>Confidence: <b>{{ item.confidence || '-' }}/5</b></span>
               <span>Rating: <b>{{ averageStars(item) }}/5</b></span>
-              <button type="button" class="ghost-btn" (click)="removeAnalysis(item.id)">Delete</button>
+              @if (canDeleteAnalysis(item)) {
+                <button type="button" class="ghost-btn danger" (click)="removeAnalysis(item.id)">Delete</button>
+              }
             </div>
             @if (item.relatedMatches?.length) {
               <p class="analysis-meta">Matches: {{ relatedMatchesLabel(item) }}</p>
@@ -238,6 +246,9 @@
               <span>Confidence: <b>{{ item.confidence || '-' }}/5</b></span>
               <span>Avg rating: <b>{{ averageStars(item) }}/5</b></span>
               <span>Reviews: <b>{{ item.ratings.length }}</b></span>
+              @if (canDeleteAnalysis(item)) {
+                <button type="button" class="ghost-btn danger" (click)="removeAnalysis(item.id)">Delete</button>
+              }
             </div>
             @if (item.relatedMatches?.length) {
               <p class="analysis-meta">Matches: {{ relatedMatchesLabel(item) }}</p>
@@ -245,6 +256,14 @@
 
             @if (!isAuthenticated()) {
               <p class="lead muted">Login to add your rating.</p>
+            } @else if (!canRateAnalysis(item)) {
+              <p class="lead muted">
+                @if (currentUser()?.disabled) {
+                  Your account is blocked, rating is disabled.
+                } @else {
+                  You cannot rate your own analysis.
+                }
+              </p>
             } @else {
               <div class="rating-form">
                 <label>

@@ -62,6 +62,7 @@ export class Analyses implements OnInit {
   reviewComments: Record<string, string> = {};
 
   readonly isAuthenticated = this.authService.isAuthenticated;
+  readonly isAdmin = this.authService.isAdmin;
   readonly currentUser = this.authService.currentUser;
   readonly selectedCount = computed(() => this.selectedMatchIds.length);
   readonly pickOptions = computed((): PickOption[] => {
@@ -219,6 +220,10 @@ export class Analyses implements OnInit {
       this.formMessage = 'Login first to add an analysis.';
       return;
     }
+    if (user.disabled) {
+      this.formMessage = 'This account has been blocked by admin.';
+      return;
+    }
 
     const selectedLabels = this.selectedMatches.map((match) => this.formatMatch(match));
     const computedLabel = selectedLabels.length ? selectedLabels.join(' | ') : this.matchLabel.trim();
@@ -261,6 +266,15 @@ export class Analyses implements OnInit {
 
   removeAnalysis(id: string): void {
     this.analyses = this.analysisService.remove(id);
+  }
+
+  canDeleteAnalysis(item: UserAnalysis): boolean {
+    const user = this.authService.currentUser();
+    if (!user) {
+      return false;
+    }
+
+    return user.role === 'admin' || item.authorId === user.id;
   }
 
   private resetForm(): void {
@@ -320,7 +334,8 @@ export class Analyses implements OnInit {
   }
 
   addRating(analysisId: string): void {
-    if (!this.authService.currentUser()) {
+    const user = this.authService.currentUser();
+    if (!user || user.disabled) {
       return;
     }
 
@@ -361,6 +376,15 @@ export class Analyses implements OnInit {
   currentUserRating(analysis: UserAnalysis): AnalysisRating | undefined {
     const currentUserId = this.authService.currentUser()?.id;
     return analysis.ratings.find((item) => item.authorId === currentUserId);
+  }
+
+  canRateAnalysis(analysis: UserAnalysis): boolean {
+    const user = this.authService.currentUser();
+    if (!user || user.disabled) {
+      return false;
+    }
+
+    return analysis.authorId !== user.id;
   }
 
   private toMatch(event: OddsEvent): AnalysisMatch {

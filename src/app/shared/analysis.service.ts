@@ -55,12 +55,27 @@ export class AnalysisService {
   }
 
   remove(id: string): UserAnalysis[] {
-    const userId = this.authService.currentUser()?.id;
-    if (!userId) {
+    const user = this.authService.currentUser();
+    if (!user) {
       return this.getAll();
     }
+
     const current = this.getAll();
-    const next = current.filter((item) => !(item.id === id && item.authorId === userId));
+    const next = current.filter(
+      (item) => !(item.id === id && (item.authorId === user.id || user.role === 'admin'))
+    );
+    this.save(next);
+    return next;
+  }
+
+  removeByAuthor(authorId: string): UserAnalysis[] {
+    const user = this.authService.currentUser();
+    if (!user || user.role !== 'admin') {
+      return this.getAll();
+    }
+
+    const current = this.getAll();
+    const next = current.filter((item) => item.authorId !== authorId);
     this.save(next);
     return next;
   }

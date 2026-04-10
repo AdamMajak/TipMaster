@@ -37,10 +37,124 @@
           <p class="account-message">Connecting to Firebase Auth...</p>
         } @else if (isAuthenticated()) {
           <div class="account-user">
-            <strong>{{ currentUser()?.name }}</strong>
+            <div class="account-user-top">
+              <strong>{{ currentUser()?.name }}</strong>
+              @if (isAdmin()) {
+                <span class="role-pill">Admin</span>
+              } @else {
+                <span class="role-pill muted">User</span>
+              }
+            </div>
             <span>{{ currentUser()?.email }}</span>
+            @if (userSyncSource() === 'local') {
+              <p class="account-message">
+                Admin panel uses local browser storage only. Firebase Auth stays enabled for login.
+              </p>
+            }
+            @if (currentUser()?.disabled) {
+              <p class="account-message">This account is blocked.</p>
+            }
             <button type="button" class="ghost-btn" (click)="logout()">Logout</button>
           </div>
+
+          @if (isAdmin()) {
+            <section class="admin-panel">
+              <header class="admin-panel-head">
+                <div>
+                  <h4>User Management</h4>
+                  <p>Promote users, add admins by email, block access, and clear their analyses locally in this browser.</p>
+                </div>
+                <span class="account-badge">Local Admin</span>
+              </header>
+
+              <form class="admin-invite" (ngSubmit)="inviteAdmin()">
+                <label>
+                  Add admin by email
+                  <input type="email" name="inviteAdminEmail" [(ngModel)]="inviteAdminEmail" placeholder="newadmin@email.com" />
+                </label>
+                <button type="submit" class="ghost-btn">Add admin</button>
+              </form>
+
+              @if (adminInviteMessage) {
+                <p class="account-message admin-message">{{ adminInviteMessage }}</p>
+              }
+
+              <div class="admin-user-list">
+                @for (user of managedUsers(); track user.id) {
+                  <article class="admin-user-card">
+                    <div class="admin-user-meta">
+                      <div class="admin-user-name">
+                        <strong>{{ user.name }}</strong>
+                        <span class="role-pill" [class.muted]="user.role !== 'admin'">
+                          {{ user.role === 'admin' ? 'Admin' : 'User' }}
+                        </span>
+                        @if (user.disabled) {
+                          <span class="status-pill blocked">Blocked</span>
+                        } @else {
+                          <span class="status-pill active">Active</span>
+                        }
+                        @if (user.id === currentUser()?.id) {
+                          <span class="status-pill self">You</span>
+                        }
+                      </div>
+                      <span>{{ user.email }}</span>
+                      <small>
+                        Last login:
+                        {{ (user.lastLoginAt ?? user.createdAt) | date: 'd MMM yyyy, HH:mm' }}
+                      </small>
+                    </div>
+
+                    <div class="admin-actions">
+                      <button
+                        type="button"
+                        class="ghost-btn"
+                        [disabled]="!canManageUser(user) || user.role === 'admin'"
+                        (click)="setUserRole(user.id, 'admin')">
+                        Make admin
+                      </button>
+                      <button
+                        type="button"
+                        class="ghost-btn"
+                        [disabled]="!canManageUser(user) || user.role === 'user'"
+                        (click)="setUserRole(user.id, 'user')">
+                        Remove admin
+                      </button>
+                      <button
+                        type="button"
+                        class="ghost-btn"
+                        [class.warn]="!user.disabled"
+                        [disabled]="!canManageUser(user)"
+                        (click)="toggleUserDisabled(user.id)">
+                        {{ user.disabled ? 'Unblock' : 'Block' }}
+                      </button>
+                      <button
+                        type="button"
+                        class="ghost-btn danger"
+                        [disabled]="!canManageUser(user)"
+                        (click)="deleteUserAnalyses(user.id)">
+                        Delete analyses
+                      </button>
+                      <button
+                        type="button"
+                        class="ghost-btn danger"
+                        [disabled]="!canManageUser(user)"
+                        (click)="removeUserFromApp(user.id)">
+                        Remove user
+                      </button>
+                    </div>
+
+                    @if (isProtectedAdmin(user)) {
+                      <small class="admin-note">Protected admin from config, role and access cannot be changed here.</small>
+                    } @else if (user.id === currentUser()?.id) {
+                      <small class="admin-note">You cannot change your own role or block yourself.</small>
+                    } @else {
+                      <small class="admin-note">Remove user deletes the local admin record and analyses on this browser, but not the Firebase Auth account.</small>
+                    }
+                  </article>
+                }
+              </div>
+            </section>
+          }
         } @else if (authConfigError()) {
           <p class="account-message">{{ authConfigError() }}</p>
         } @else {

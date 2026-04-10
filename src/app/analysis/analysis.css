@@ -153,6 +153,16 @@
   border-color: rgba(110, 170, 255, 0.3);
 }
 
+.ghost-btn.danger {
+  border-color: rgba(255, 120, 120, 0.28);
+  color: #ffd1d1;
+}
+
+.ghost-btn.danger:hover {
+  border-color: rgba(255, 120, 120, 0.45);
+  background: rgba(255, 120, 120, 0.08);
+}
+
 .form-row {
   display: grid;
   grid-template-columns: 1fr 1fr;

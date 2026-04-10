@@ -1,0 +1,43 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function authEmail() {
+      return signedIn() && request.auth.token.email != null
+        ? lower(request.auth.token.email)
+        : '';
+    }
+
+    function userDoc() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid));
+    }
+
+    function isAdmin() {
+      return signedIn() && userDoc().data.role == 'admin';
+    }
+
+    function ownsEmail() {
+      return signedIn() && resource.data.email == authEmail();
+    }
+
+    function incomingOwnsEmail() {
+      return signedIn() && request.resource.data.email == authEmail();
+    }
+
+    match /users/{userId} {
+      allow read: if isAdmin() || (signedIn() && (userId == request.auth.uid || ownsEmail()));
+      allow create: if isAdmin() || (signedIn() && userId == request.auth.uid && incomingOwnsEmail());
+      allow update: if isAdmin()
+        || (signedIn()
+          && userId == request.auth.uid
+          && incomingOwnsEmail()
+          && request.resource.data.role == resource.data.role
+          && request.resource.data.disabled == resource.data.disabled);
+      allow delete: if isAdmin() || ownsEmail();
+    }
+  }
+}
