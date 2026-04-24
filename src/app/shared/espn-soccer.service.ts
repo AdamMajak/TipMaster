@@ -1,6 +1,8 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { catchError, forkJoin, map, Observable, of, switchMap, throwError, timeout } from 'rxjs';
+import { OddsEvent, OddsService } from './odds.service';
+import { SPORT_KEYS } from './rapidapi-odds';
 
 export interface SoccerGame {
   id: string;
@@ -132,153 +134,12 @@ export interface SoccerMatchExtras {
 }
 
 const ESPN_SOCCER_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
-const DEFAULT_TEAM_RATING = 74;
-const HOME_ADVANTAGE = 5;
-const BOOK_MARGIN = 1.07;
-
-const LEAGUE_BASE_RATINGS: Record<string, number> = {
-  'eng.1': 82,
-  'eng.2': 74,
-  'eng.3': 68,
-  'eng.4': 64,
-  'eng.5': 60,
-  'esp.1': 80,
-  'esp.2': 72,
-  'ger.1': 79,
-  'ger.2': 71,
-  'ita.1': 79,
-  'ita.2': 70,
-  'fra.1': 78,
-  'fra.2': 70,
-  'por.1': 75,
-  'ned.1': 76,
-  'bel.1': 72,
-  'aut.1': 71,
-  'tur.1': 74,
-  'gre.1': 72,
-  'den.1': 70,
-  'nor.1': 68,
-  'swe.1': 68,
-  'sco.1': 72,
-  'usa.1': 69,
-  'uefa.champions': 86,
-  'uefa.europa': 81,
-  'uefa.europa.conf': 77,
-  'concacaf.champions': 72,
-  'fifa.world': 84,
-  'fifa.worldq': 76,
-  'fifa.worldq.uefa': 78,
-  'fifa.worldq.concacaf': 70,
-  'fifa.worldq.conmebol': 78,
-};
-
-const TEAM_RATINGS: Record<string, number> = {
-  'real madrid': 99,
-  barcelona: 95,
-  'atletico madrid': 92,
-  'athletic club': 86,
-  'real sociedad': 85,
-  sevilla: 81,
-  villarreal: 83,
-  'real betis': 82,
-  valencia: 79,
-  girona: 80,
-  'manchester city': 98,
-  arsenal: 95,
-  liverpool: 96,
-  chelsea: 88,
-  'manchester united': 86,
-  'tottenham hotspur': 87,
-  'newcastle united': 85,
-  'aston villa': 84,
-  brighton: 80,
-  'west ham united': 78,
-  fulham: 76,
-  brentford: 76,
-  'crystal palace': 75,
-  bournemouth: 75,
-  everton: 74,
-  'nottingham forest': 74,
-  wolves: 73,
-  'wolverhampton wanderers': 73,
-  leicester: 75,
-  'leicester city': 75,
-  ipswich: 69,
-  'ipswich town': 69,
-  southampton: 70,
-  'bayern munich': 98,
-  leverkusen: 94,
-  'bayer leverkusen': 94,
-  dortmund: 90,
-  'borussia dortmund': 90,
-  leipzig: 88,
-  'rb leipzig': 88,
-  stuttgart: 84,
-  frankfurt: 82,
-  'eintracht frankfurt': 82,
-  'borussia monchengladbach': 78,
-  monchengladbach: 78,
-  hoffenheim: 76,
-  freiburg: 77,
-  wolfsburg: 77,
-  'st pauli': 71,
-  inter: 96,
-  'inter milan': 96,
-  juventus: 90,
-  milan: 89,
-  'ac milan': 89,
-  napoli: 88,
-  atalanta: 88,
-  roma: 85,
-  lazio: 84,
-  fiorentina: 81,
-  bologna: 81,
-  torino: 77,
-  psg: 99,
-  'paris saint germain': 99,
-  marseille: 84,
-  monaco: 85,
-  lyon: 80,
-  lille: 82,
-  lens: 80,
-  benfica: 89,
-  porto: 87,
-  sporting: 88,
-  'sporting cp': 88,
-  psv: 91,
-  ajax: 84,
-  feyenoord: 86,
-  celtic: 85,
-  rangers: 82,
-  galatasaray: 85,
-  fenerbahce: 84,
-  besiktas: 79,
-  olympiakos: 81,
-  'club brugge': 78,
-  anderlecht: 77,
-  salzburg: 78,
-  'red bull salzburg': 78,
-  bodo: 74,
-  'bodo glimt': 74,
-  'bodo/glimt': 74,
-  copenhagen: 77,
-  'fc copenhagen': 77,
-  dinamo: 76,
-  'dinamo zagreb': 76,
-  sparta: 75,
-  'sparta prague': 75,
-  'slavia prague': 76,
-  wrexham: 70,
-  'swansea city': 71,
-  'colchester united': 62,
-  'crawley town': 61,
-  morton: 63,
-  'partick thistle': 64,
-};
-
 @Injectable({ providedIn: 'root' })
 export class EspnSoccerService {
-  constructor(private readonly http: HttpClient) {}
+  constructor(
+    private readonly http: HttpClient,
+    private readonly oddsService: OddsService
+  ) {}
 
   private isLocalDev(): boolean {
     if (typeof location === 'undefined') {
@@ -305,11 +166,18 @@ export class EspnSoccerService {
     const requests = dates.map((date) =>
       this.http.get<any>(`${ESPN_SOCCER_BASE_URL}/${league}/scoreboard?dates=${date}`)
     );
+    const oddsRequest = this.oddsService.getOddsBySport(SPORT_KEYS.soccer);
 
-    return forkJoin(requests).pipe(
-      map((responses) => responses.flatMap((data) => this.mapScoreboard(data, league))),
-      map((games) => this.deduplicateGames(games)),
-      map((games) => this.sortGames(games))
+    return forkJoin({
+      scoreboards: forkJoin(requests),
+      oddsEvents: oddsRequest.pipe(catchError(() => of([]))),
+    }).pipe(
+      map(({ scoreboards, oddsEvents }) => {
+        const games = scoreboards.flatMap((data) => this.mapScoreboard(data));
+        const deduped = this.deduplicateGames(games);
+        const withRealOdds = this.attachRealOdds(deduped, oddsEvents);
+        return this.sortGames(withRealOdds);
+      })
     );
   }
 
@@ -342,7 +210,7 @@ export class EspnSoccerService {
   getTeamSchedule(league: string, teamId: string): Observable<SoccerGame[]> {
     return this.http.get<any>(`${ESPN_SOCCER_BASE_URL}/${encodeURIComponent(league)}/teams/${encodeURIComponent(teamId)}/schedule`).pipe(
       timeout(12000),
-      map((data) => this.mapScheduleAsGames(data, league)),
+      map((data) => this.mapScheduleAsGames(data)),
       catchError(() => of([]))
     );
   }
@@ -452,7 +320,7 @@ export class EspnSoccerService {
     );
   }
 
-  private mapScoreboard(data: any, league: string): SoccerGame[] {
+  private mapScoreboard(data: any): SoccerGame[] {
     const events = data?.events ?? [];
     return events.map((event: any) => {
       const competition = event?.competitions?.[0];
@@ -479,32 +347,184 @@ export class EspnSoccerService {
         homeScore: this.toScore(home?.score),
         awayScore: this.toScore(away?.score),
         venue,
-        odds: this.buildMatchOdds(homeTeam, awayTeam, league),
+        odds: [],
       };
     });
   }
 
-  private buildMatchOdds(homeTeam: string, awayTeam: string, league: string): SoccerOddsOutcome[] {
-    const leagueBase = LEAGUE_BASE_RATINGS[league] ?? DEFAULT_TEAM_RATING;
-    const homeRating = this.resolveTeamRating(homeTeam, leagueBase) + HOME_ADVANTAGE;
-    const awayRating = this.resolveTeamRating(awayTeam, leagueBase);
-    const ratingDiff = homeRating - awayRating;
-    const drawProbability = this.clamp(0.29 - Math.abs(ratingDiff) * 0.0035, 0.19, 0.3);
-    const remainder = 1 - drawProbability;
-    const homeShare = 1 / (1 + Math.exp(-ratingDiff / 7.5));
-    const homeProbability = remainder * homeShare;
-    const awayProbability = remainder - homeProbability;
+  private attachRealOdds(games: SoccerGame[], oddsEvents: OddsEvent[]): SoccerGame[] {
+    if (!games.length || !oddsEvents.length) {
+      return games;
+    }
 
-    return [
-      { name: '1', price: this.toDecimalOdds(homeProbability) },
-      { name: 'X', price: this.toDecimalOdds(drawProbability) },
-      { name: '2', price: this.toDecimalOdds(awayProbability) },
-    ];
+    return games.map((game) => {
+      const match = this.findOddsEventForGame(game, oddsEvents);
+      if (!match) {
+        return game;
+      }
+
+      const mappedOdds = this.mapEventOddsToThreeWay(game, match);
+      if (!mappedOdds.length) {
+        return game;
+      }
+
+      return { ...game, odds: mappedOdds };
+    });
   }
 
-  private resolveTeamRating(teamName: string, leagueBase: number): number {
-    const normalized = this.normalizeTeamName(teamName);
-    return TEAM_RATINGS[normalized] ?? leagueBase;
+  private findOddsEventForGame(game: SoccerGame, oddsEvents: OddsEvent[]): OddsEvent | null {
+    const gameKickoff = new Date(game.date).getTime();
+    const maxKickoffDeltaMs = 18 * 60 * 60 * 1000;
+
+    let best: OddsEvent | null = null;
+    let bestScore = -1;
+    let bestKickoffDelta = Number.POSITIVE_INFINITY;
+
+    for (const event of oddsEvents) {
+      const eventKickoff = new Date(event.commence_time).getTime();
+      const kickoffDelta = Math.abs(gameKickoff - eventKickoff);
+      if (Number.isFinite(gameKickoff) && Number.isFinite(eventKickoff) && kickoffDelta > maxKickoffDeltaMs) {
+        continue;
+      }
+
+      const scoreDirect = this.teamMatchScore(game.homeTeam, event.home_team) + this.teamMatchScore(game.awayTeam, event.away_team);
+      const scoreSwapped = this.teamMatchScore(game.homeTeam, event.away_team) + this.teamMatchScore(game.awayTeam, event.home_team);
+      const score = Math.max(scoreDirect, scoreSwapped);
+
+      if (score > bestScore || (score === bestScore && kickoffDelta < bestKickoffDelta)) {
+        bestScore = score;
+        best = event;
+        bestKickoffDelta = kickoffDelta;
+      }
+    }
+
+    return bestScore >= 2 ? best : null;
+  }
+
+  private mapEventOddsToThreeWay(game: SoccerGame, event: OddsEvent): SoccerOddsOutcome[] {
+    const h2h = event.bookmakers?.find((bookmaker) => bookmaker?.markets?.some((market) => market?.key === 'h2h'))
+      ?.markets?.find((market) => market?.key === 'h2h');
+    const outcomes = h2h?.outcomes ?? [];
+    if (!outcomes.length) {
+      return [];
+    }
+
+    const drawAliases = new Set(['draw', 'tie', 'x', 'remiza', 'remis']);
+    const eventHome = this.normalizeTeamName(event.home_team);
+    const eventAway = this.normalizeTeamName(event.away_team);
+
+    const used = new Set<number>();
+    let homePrice: number | undefined;
+    let awayPrice: number | undefined;
+    let drawPrice: number | undefined;
+
+    outcomes.forEach((outcome, index) => {
+      const name = this.normalizeTeamName(outcome?.name ?? '');
+      if (!name || typeof outcome?.price !== 'number') {
+        return;
+      }
+
+      if (drawAliases.has(name)) {
+        drawPrice = outcome.price;
+        used.add(index);
+      }
+    });
+
+    outcomes.forEach((outcome, index) => {
+      if (used.has(index)) {
+        return;
+      }
+
+      const name = outcome?.name ?? '';
+      if (typeof outcome?.price !== 'number') {
+        return;
+      }
+
+      const homeScore = this.teamMatchScore(eventHome, name);
+      const awayScore = this.teamMatchScore(eventAway, name);
+      if (homeScore >= awayScore && homeScore >= 2 && homePrice === undefined) {
+        homePrice = outcome.price;
+        used.add(index);
+        return;
+      }
+
+      if (awayScore > homeScore && awayScore >= 2 && awayPrice === undefined) {
+        awayPrice = outcome.price;
+        used.add(index);
+      }
+    });
+
+    outcomes.forEach((outcome, index) => {
+      if (used.has(index)) {
+        return;
+      }
+
+      if (typeof outcome?.price !== 'number') {
+        return;
+      }
+
+      if (homePrice === undefined) {
+        homePrice = outcome.price;
+        used.add(index);
+        return;
+      }
+
+      if (awayPrice === undefined) {
+        awayPrice = outcome.price;
+        used.add(index);
+        return;
+      }
+
+      if (drawPrice === undefined) {
+        drawPrice = outcome.price;
+      }
+    });
+
+    const mapped: SoccerOddsOutcome[] = [];
+    if (homePrice !== undefined) {
+      mapped.push({ name: '1', price: homePrice });
+    }
+    if (drawPrice !== undefined) {
+      mapped.push({ name: 'X', price: drawPrice });
+    }
+    if (awayPrice !== undefined) {
+      mapped.push({ name: '2', price: awayPrice });
+    }
+
+    return mapped;
+  }
+
+  private teamMatchScore(a: string, b: string): number {
+    const na = this.normalizeTeamName(a);
+    const nb = this.normalizeTeamName(b);
+
+    if (!na || !nb) {
+      return 0;
+    }
+
+    if (na === nb) {
+      return 4;
+    }
+
+    if (na.includes(nb) || nb.includes(na)) {
+      return 3;
+    }
+
+    const aTokens = na.split(' ').filter((token) => token.length > 1);
+    const bTokens = nb.split(' ').filter((token) => token.length > 1);
+    const overlap = aTokens.filter((token) => bTokens.includes(token)).length;
+
+    if (overlap >= 2) {
+      return 2;
+    }
+
+    if (overlap === 1) {
+      const shortA = aTokens.length <= 2 && aTokens.some((token) => token.length <= 4);
+      const shortB = bTokens.length <= 2 && bTokens.some((token) => token.length <= 4);
+      return shortA || shortB ? 2 : 1;
+    }
+
+    return 0;
   }
 
   private normalizeTeamName(teamName: string): string {
@@ -516,16 +536,6 @@ export class EspnSoccerService {
       .replace(/[^a-z0-9/ ]+/g, ' ')
       .replace(/\s+/g, ' ')
       .trim();
-  }
-
-  private toDecimalOdds(probability: number): number {
-    const safeProbability = this.clamp(probability, 0.05, 0.82);
-    const marketOdds = 1 / (safeProbability * BOOK_MARGIN);
-    return Math.round(this.clamp(marketOdds, 1.18, 13) * 100) / 100;
-  }
-
-  private clamp(value: number, min: number, max: number): number {
-    return Math.min(max, Math.max(min, value));
   }
 
   private formatStatusLabel(statusType: any, fallback: string): string {
@@ -1017,7 +1027,7 @@ export class EspnSoccerService {
       .filter(Boolean) as SoccerRosterPlayer[];
   }
 
-  private mapScheduleAsGames(data: any, league: string): SoccerGame[] {
+  private mapScheduleAsGames(data: any): SoccerGame[] {
     const events =
       (Array.isArray(data?.events) ? data.events : null) ??
       (Array.isArray(data?.items) ? data.items : null) ??
@@ -1032,13 +1042,13 @@ export class EspnSoccerService {
         [];
 
       if (Array.isArray(nested) && nested.length) {
-        return this.mapScoreboard({ events: nested }, league);
+        return this.mapScoreboard({ events: nested });
       }
 
       return [];
     }
 
-    return this.mapScoreboard({ events }, league);
+    return this.mapScoreboard({ events });
   }
 
   private findTeamByName(teams: SoccerTeam[], name: string): SoccerTeam | null {
