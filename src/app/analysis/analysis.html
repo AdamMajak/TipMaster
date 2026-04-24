@@ -29,7 +29,7 @@
       <div class="hero-tool-card">
         <label class="inline-label">
           Analysis date
-          <input type="date" name="analysisDateTop" [(ngModel)]="analysisDate" />
+          <input type="date" name="analysisDateTop" [(ngModel)]="analysisDate" (ngModelChange)="onAnalysisDateChange()" />
         </label>
         <button type="button" class="action ghost" (click)="reloadMatches()" [disabled]="loadingMatches">
           {{ loadingMatches ? 'Refreshing...' : 'Refresh matches' }}

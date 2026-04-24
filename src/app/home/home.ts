@@ -5,6 +5,7 @@ import { catchError, forkJoin, of } from 'rxjs';
 import { OddsService } from '../shared/odds.service';
 import { ESPN_SOCCER_LEAGUES } from '../shared/espn-soccer-leagues';
 import { EspnSoccerService, SoccerGame, SoccerOddsOutcome } from '../shared/espn-soccer.service';
+import { AnalysisService, UserAnalysis } from '../shared/analysis.service';
 
 interface HomeMatch {
   id: string;
@@ -64,10 +65,14 @@ export class Home implements OnInit {
   error = '';
   sportsCount = 0;
   footballMatches: HomeMatch[] = [];
+  analysesLoading = true;
+  latestAnalyses: UserAnalysis[] = [];
+  private readonly todayDate = this.getDateKey(new Date());
 
   constructor(
     private readonly oddsService: OddsService,
-    private readonly soccerService: EspnSoccerService
+    private readonly soccerService: EspnSoccerService,
+    private readonly analysisService: AnalysisService
   ) {}
 
   ngOnInit(): void {
@@ -102,6 +107,16 @@ export class Home implements OnInit {
         this.loading = false;
       },
     });
+
+    void (async () => {
+      this.analysesLoading = true;
+      try {
+        const items = await this.analysisService.getByDate(this.todayDate);
+        this.latestAnalyses = items.slice(0, 4);
+      } finally {
+        this.analysesLoading = false;
+      }
+    })();
   }
 
   private compareFeaturedMatches(a: HomeMatch, b: HomeMatch): number {
@@ -147,6 +162,14 @@ export class Home implements OnInit {
       insight: this.buildMatchInsight(odds),
       confidence: this.getConfidenceRating(odds),
     };
+  }
+
+  private getDateKey(value: Date): string {
+    return new Intl.DateTimeFormat('sv-SE', {
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(value);
   }
 
   private buildMatchInsight(odds: Array<{ name: string; price: number }>): string {

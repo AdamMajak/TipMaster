@@ -103,6 +103,17 @@ export class Analyses implements OnInit {
 
   ngOnInit(): void {
     this.reloadMatches();
+    void this.loadAnalysesForDate();
+  }
+
+  onAnalysisDateChange(): void {
+    void this.loadAnalysesForDate();
+  }
+
+  private async loadAnalysesForDate(): Promise<void> {
+    const dateKey = (this.analysisDate ?? '').trim() || this.todayDate;
+    this.analysisDate = dateKey;
+    this.analyses = await this.analysisService.getByDate(dateKey);
   }
 
   reloadMatches(): void {
@@ -245,7 +256,7 @@ export class Analyses implements OnInit {
     }
 
     const created: UserAnalysis = {
-      id: `user-${Date.now()}`,
+      id: `analysis-${Date.now()}-${this.slugify(user.name ?? user.email ?? 'user')}`,
       authorId: user.id,
       authorName: user.name,
       createdAt: new Date().toISOString(),
@@ -260,12 +271,31 @@ export class Analyses implements OnInit {
       ratings: [],
     };
 
-    this.analyses = this.analysisService.add(created);
-    this.resetForm();
+    void (async () => {
+      this.analyses = await this.analysisService.add(created);
+      await this.loadAnalysesForDate();
+      this.resetForm();
+    })();
+  }
+
+  private slugify(value: string): string {
+    const normalized = (value ?? 'user')
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/(^-|-$)/g, '')
+      .trim();
+
+    return normalized || 'user';
   }
 
   removeAnalysis(id: string): void {
-    this.analyses = this.analysisService.remove(id);
+    void (async () => {
+      this.analyses = await this.analysisService.remove(id);
+      await this.loadAnalysesForDate();
+    })();
   }
 
   canDeleteAnalysis(item: UserAnalysis): boolean {
@@ -341,9 +371,12 @@ export class Analyses implements OnInit {
 
     const stars = this.reviewStars[analysisId] ?? 0;
     const comment = this.reviewComments[analysisId]?.trim();
-    this.analyses = this.analysisService.addRating(analysisId, stars, comment);
-    this.reviewStars[analysisId] = stars;
-    this.reviewComments[analysisId] = '';
+    void (async () => {
+      this.analyses = await this.analysisService.addRating(analysisId, stars, comment);
+      await this.loadAnalysesForDate();
+      this.reviewStars[analysisId] = stars;
+      this.reviewComments[analysisId] = '';
+    })();
   }
 
   setReviewStars(analysisId: string, value: number | string | null): void {

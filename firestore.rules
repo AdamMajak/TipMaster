@@ -7,9 +7,19 @@ service cloud.firestore {
     }
 
     function authEmail() {
-      return signedIn() && request.auth.token.email != null
-        ? lower(request.auth.token.email)
-        : '';
+      return signedIn() && request.auth.token.email != null ? request.auth.token.email : '';
+    }
+
+    function hasAdminInvite() {
+      return signedIn() && exists(/databases/$(database)/documents/adminInvites/$(authEmail()));
+    }
+
+    function bootstrapAdminEmail() {
+      return authEmail() in ['adajam45@gmail.com', 'davidkminek6@gmail.com'];
+    }
+
+    function hasUserDoc() {
+      return signedIn() && exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     function userDoc() {
@@ -17,11 +27,7 @@ service cloud.firestore {
     }
 
     function isAdmin() {
-      return signedIn() && userDoc().data.role == 'admin';
-    }
-
-    function ownsEmail() {
-      return signedIn() && resource.data.email == authEmail();
+      return signedIn() && (bootstrapAdminEmail() || (hasUserDoc() && userDoc().data.role == 'admin'));
     }
 
     function incomingOwnsEmail() {
@@ -29,15 +35,91 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isAdmin() || (signedIn() && (userId == request.auth.uid || ownsEmail()));
-      allow create: if isAdmin() || (signedIn() && userId == request.auth.uid && incomingOwnsEmail());
+      allow read: if signedIn() && (isAdmin() || userId == request.auth.uid);
+
+      allow create: if isAdmin()
+        || (signedIn()
+          && userId == request.auth.uid
+          && incomingOwnsEmail()
+          && request.resource.data.disabled == false
+          && request.resource.data.role == ((bootstrapAdminEmail() || hasAdminInvite()) ? 'admin' : 'user'));
+
       allow update: if isAdmin()
         || (signedIn()
           && userId == request.auth.uid
           && incomingOwnsEmail()
           && request.resource.data.role == resource.data.role
           && request.resource.data.disabled == resource.data.disabled);
-      allow delete: if isAdmin() || ownsEmail();
+      allow delete: if isAdmin() || (signedIn() && userId == request.auth.uid);
+
+      match /tickets/{ticketId} {
+        allow read: if signedIn() && (isAdmin() || userId == request.auth.uid);
+        allow create: if signedIn() && userId == request.auth.uid
+          && request.resource.data.id == ticketId
+          && request.resource.data.placedAt is string
+          && request.resource.data.stake is number
+          && request.resource.data.totalOdds is number
+          && request.resource.data.potentialWin is number
+          && request.resource.data.selections is list;
+        allow update: if signedIn() && (isAdmin() || userId == request.auth.uid);
+        allow delete: if signedIn() && (isAdmin() || userId == request.auth.uid);
+      }
+
+      match /analyses/{analysisId} {
+        allow read: if signedIn() && (isAdmin() || userId == request.auth.uid);
+        allow create: if signedIn() && userId == request.auth.uid
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.authorName is string
+          && request.resource.data.createdAt is string
+          && request.resource.data.analysisDate is string
+          && request.resource.data.matchLabel is string
+          && request.resource.data.title is string
+          && request.resource.data.summary is string;
+        allow update: if isAdmin()
+          || (signedIn()
+            && userId == request.auth.uid
+            && resource.data.authorId == request.auth.uid
+            && request.resource.data.authorId == resource.data.authorId
+            && request.resource.data.createdAt == resource.data.createdAt);
+        allow delete: if isAdmin() || (signedIn() && userId == request.auth.uid);
+      }
+    }
+
+    match /adminInvites/{email} {
+      allow read: if isAdmin() || (signedIn() && email == authEmail());
+      allow write: if isAdmin();
+    }
+
+    match /analyses/{analysisId} {
+      allow read: if true;
+
+      allow create: if signedIn()
+        && request.resource.data.authorId == request.auth.uid
+        && request.resource.data.authorName is string
+        && request.resource.data.createdAt is string
+        && request.resource.data.analysisDate is string
+        && request.resource.data.matchLabel is string
+        && request.resource.data.title is string
+        && request.resource.data.summary is string;
+
+      allow update: if isAdmin()
+        || (signedIn()
+          && resource.data.authorId == request.auth.uid
+          && request.resource.data.authorId == resource.data.authorId
+          && request.resource.data.createdAt == resource.data.createdAt);
+
+      allow delete: if isAdmin() || (signedIn() && resource.data.authorId == request.auth.uid);
+
+      match /ratings/{raterId} {
+        allow read: if true;
+        allow create, update: if signedIn()
+          && raterId == request.auth.uid
+          && request.resource.data.authorId == request.auth.uid
+          && request.resource.data.authorName is string
+          && request.resource.data.createdAt is string
+          && request.resource.data.stars is int;
+        allow delete: if isAdmin() || (signedIn() && raterId == request.auth.uid);
+      }
     }
   }
 }

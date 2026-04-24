@@ -41,6 +41,9 @@ export class App {
   protected readonly isAuthReady = this.authService.isReady;
   protected readonly authConfigError = this.authService.configError;
   protected readonly userSyncSource = this.userAdminService.syncSource;
+  protected readonly userSyncError = this.userAdminService.syncError;
+  protected readonly adminListSyncSource = this.userAdminService.adminListSource;
+  protected readonly adminListSyncError = this.userAdminService.adminListError;
   protected readonly managedUsers = computed(() => {
     this.userAdminService.version();
     return this.userAdminService
@@ -145,7 +148,7 @@ export class App {
       return;
     }
 
-    this.analysisService.removeByAuthor(userId);
+    void this.analysisService.removeByAuthor(userId);
   }
 
   protected async removeUserFromApp(userId: string): Promise<void> {
@@ -155,7 +158,7 @@ export class App {
       return;
     }
 
-    this.analysisService.removeByAuthor(userId);
+    await this.analysisService.removeByAuthor(userId);
     await this.userAdminService.removeUser(userId);
   }
 

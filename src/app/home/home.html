@@ -25,6 +25,39 @@
     <a routerLink="/analysis">Analyses</a>
   </section>
 
+  <section class="widget-panel analysis-panel">
+    <header class="analysis-header">
+      <div>
+        <h3>Latest Analyses</h3>
+        <p class="lead">Fresh community cards saved to the database for today.</p>
+      </div>
+      <a routerLink="/analysis" class="pill">Open</a>
+    </header>
+
+    @if (analysesLoading) {
+      <p class="lead">Loading analyses...</p>
+    } @else if (!latestAnalyses.length) {
+      <p class="lead muted empty-state">No analyses yet today. Be the first to publish one.</p>
+    } @else {
+      <div class="analysis-grid">
+        @for (item of latestAnalyses; track item.id) {
+          <article class="analysis-card">
+            <div class="analysis-top">
+              <strong>{{ item.title }}</strong>
+              <span>{{ item.authorName }}</span>
+            </div>
+            <p class="analysis-meta">{{ item.matchLabel }}</p>
+            <p class="analysis-text">{{ item.summary }}</p>
+            <div class="analysis-footer">
+              <span>Pick: <b>{{ item.pick || '-' }}</b></span>
+              <span>Confidence: <b>{{ item.confidence || '-' }}/5</b></span>
+            </div>
+          </article>
+        }
+      </div>
+    }
+  </section>
+
   @if (error) {
     <section class="widget-panel">
       <h3>API Error</h3>

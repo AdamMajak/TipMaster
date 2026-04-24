@@ -46,10 +46,24 @@
               }
             </div>
             <span>{{ currentUser()?.email }}</span>
-            @if (userSyncSource() === 'local') {
-              <p class="account-message">
-                Admin panel uses local browser storage only. Firebase Auth stays enabled for login.
-              </p>
+            @if (!isAdmin()) {
+              @if (userSyncSource() === 'firestore') {
+                <p class="account-message">Account synced with Firestore.</p>
+              } @else {
+                <p class="account-message">Account stored only in this browser (Firestore disabled/unavailable).</p>
+              }
+              @if (userSyncError()) {
+                <p class="account-message">{{ userSyncError() }}</p>
+              }
+            } @else {
+              @if (adminListSyncSource() === 'firestore') {
+                <p class="account-message">Admin list synced with Firestore.</p>
+              } @else {
+                <p class="account-message">Admin list stored only in this browser (Firestore disabled/unavailable).</p>
+              }
+              @if (adminListSyncError()) {
+                <p class="account-message">{{ adminListSyncError() }}</p>
+              }
             }
             @if (currentUser()?.disabled) {
               <p class="account-message">This account is blocked.</p>

@@ -1,8 +1,6 @@
 import { Injectable } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { catchError, forkJoin, map, Observable, of, switchMap, throwError, timeout } from 'rxjs';
-import { OddsEvent, OddsService } from './odds.service';
-import { SPORT_KEYS } from './rapidapi-odds';
 
 export interface SoccerGame {
   id: string;
@@ -136,10 +134,7 @@ export interface SoccerMatchExtras {
 const ESPN_SOCCER_BASE_URL = 'https://site.api.espn.com/apis/site/v2/sports/soccer';
 @Injectable({ providedIn: 'root' })
 export class EspnSoccerService {
-  constructor(
-    private readonly http: HttpClient,
-    private readonly oddsService: OddsService
-  ) {}
+  constructor(private readonly http: HttpClient) {}
 
   private isLocalDev(): boolean {
     if (typeof location === 'undefined') {
@@ -166,18 +161,11 @@ export class EspnSoccerService {
     const requests = dates.map((date) =>
       this.http.get<any>(`${ESPN_SOCCER_BASE_URL}/${league}/scoreboard?dates=${date}`)
     );
-    const oddsRequest = this.oddsService.getOddsBySport(SPORT_KEYS.soccer);
 
-    return forkJoin({
-      scoreboards: forkJoin(requests),
-      oddsEvents: oddsRequest.pipe(catchError(() => of([]))),
-    }).pipe(
-      map(({ scoreboards, oddsEvents }) => {
-        const games = scoreboards.flatMap((data) => this.mapScoreboard(data));
-        const deduped = this.deduplicateGames(games);
-        const withRealOdds = this.attachRealOdds(deduped, oddsEvents);
-        return this.sortGames(withRealOdds);
-      })
+    return forkJoin(requests).pipe(
+      map((responses) => responses.flatMap((data) => this.mapScoreboard(data, league))),
+      map((games) => this.deduplicateGames(games)),
+      map((games) => this.sortGames(games))
     );
   }
 
@@ -210,7 +198,7 @@ export class EspnSoccerService {
   getTeamSchedule(league: string, teamId: string): Observable<SoccerGame[]> {
     return this.http.get<any>(`${ESPN_SOCCER_BASE_URL}/${encodeURIComponent(league)}/teams/${encodeURIComponent(teamId)}/schedule`).pipe(
       timeout(12000),
-      map((data) => this.mapScheduleAsGames(data)),
+      map((data) => this.mapScheduleAsGames(data, league)),
       catchError(() => of([]))
     );
   }
@@ -320,7 +308,7 @@ export class EspnSoccerService {
     );
   }
 
-  private mapScoreboard(data: any): SoccerGame[] {
+  private mapScoreboard(data: any, league: string): SoccerGame[] {
     const events = data?.events ?? [];
     return events.map((event: any) => {
       const competition = event?.competitions?.[0];
@@ -347,184 +335,48 @@ export class EspnSoccerService {
         homeScore: this.toScore(home?.score),
         awayScore: this.toScore(away?.score),
         venue,
-        odds: [],
+        odds: this.buildMatchOdds(homeTeam, awayTeam, league),
       };
     });
   }
 
-  private attachRealOdds(games: SoccerGame[], oddsEvents: OddsEvent[]): SoccerGame[] {
-    if (!games.length || !oddsEvents.length) {
-      return games;
-    }
+  private buildMatchOdds(homeTeam: string, awayTeam: string, league: string): SoccerOddsOutcome[] {
+    const seed = this.hash(`${league}|${homeTeam}|${awayTeam}`);
+    const seed2 = this.hash(`${homeTeam}|${awayTeam}|${league}`);
 
-    return games.map((game) => {
-      const match = this.findOddsEventForGame(game, oddsEvents);
-      if (!match) {
-        return game;
-      }
+    const drawProbability = this.clamp(0.28 + (seed - 0.5) * 0.06, 0.24, 0.32);
+    const remainder = 1 - drawProbability;
 
-      const mappedOdds = this.mapEventOddsToThreeWay(game, match);
-      if (!mappedOdds.length) {
-        return game;
-      }
+    const homeShare = this.clamp(0.55 + (seed2 - 0.5) * 0.18, 0.38, 0.68);
+    const homeProbability = remainder * homeShare;
+    const awayProbability = remainder - homeProbability;
 
-      return { ...game, odds: mappedOdds };
-    });
+    return [
+      { name: '1', price: this.toDecimalOdds(homeProbability) },
+      { name: 'X', price: this.toDecimalOdds(drawProbability) },
+      { name: '2', price: this.toDecimalOdds(awayProbability) },
+    ];
   }
 
-  private findOddsEventForGame(game: SoccerGame, oddsEvents: OddsEvent[]): OddsEvent | null {
-    const gameKickoff = new Date(game.date).getTime();
-    const maxKickoffDeltaMs = 18 * 60 * 60 * 1000;
-
-    let best: OddsEvent | null = null;
-    let bestScore = -1;
-    let bestKickoffDelta = Number.POSITIVE_INFINITY;
-
-    for (const event of oddsEvents) {
-      const eventKickoff = new Date(event.commence_time).getTime();
-      const kickoffDelta = Math.abs(gameKickoff - eventKickoff);
-      if (Number.isFinite(gameKickoff) && Number.isFinite(eventKickoff) && kickoffDelta > maxKickoffDeltaMs) {
-        continue;
-      }
-
-      const scoreDirect = this.teamMatchScore(game.homeTeam, event.home_team) + this.teamMatchScore(game.awayTeam, event.away_team);
-      const scoreSwapped = this.teamMatchScore(game.homeTeam, event.away_team) + this.teamMatchScore(game.awayTeam, event.home_team);
-      const score = Math.max(scoreDirect, scoreSwapped);
-
-      if (score > bestScore || (score === bestScore && kickoffDelta < bestKickoffDelta)) {
-        bestScore = score;
-        best = event;
-        bestKickoffDelta = kickoffDelta;
-      }
-    }
-
-    return bestScore >= 2 ? best : null;
+  private toDecimalOdds(probability: number): number {
+    const margin = 0.94;
+    const safeProbability = this.clamp(probability, 0.06, 0.88);
+    const odds = 1 / (safeProbability * margin);
+    return Math.round(this.clamp(odds, 1.18, 15) * 100) / 100;
   }
 
-  private mapEventOddsToThreeWay(game: SoccerGame, event: OddsEvent): SoccerOddsOutcome[] {
-    const h2h = event.bookmakers?.find((bookmaker) => bookmaker?.markets?.some((market) => market?.key === 'h2h'))
-      ?.markets?.find((market) => market?.key === 'h2h');
-    const outcomes = h2h?.outcomes ?? [];
-    if (!outcomes.length) {
-      return [];
-    }
-
-    const drawAliases = new Set(['draw', 'tie', 'x', 'remiza', 'remis']);
-    const eventHome = this.normalizeTeamName(event.home_team);
-    const eventAway = this.normalizeTeamName(event.away_team);
-
-    const used = new Set<number>();
-    let homePrice: number | undefined;
-    let awayPrice: number | undefined;
-    let drawPrice: number | undefined;
-
-    outcomes.forEach((outcome, index) => {
-      const name = this.normalizeTeamName(outcome?.name ?? '');
-      if (!name || typeof outcome?.price !== 'number') {
-        return;
-      }
-
-      if (drawAliases.has(name)) {
-        drawPrice = outcome.price;
-        used.add(index);
-      }
-    });
-
-    outcomes.forEach((outcome, index) => {
-      if (used.has(index)) {
-        return;
-      }
-
-      const name = outcome?.name ?? '';
-      if (typeof outcome?.price !== 'number') {
-        return;
-      }
-
-      const homeScore = this.teamMatchScore(eventHome, name);
-      const awayScore = this.teamMatchScore(eventAway, name);
-      if (homeScore >= awayScore && homeScore >= 2 && homePrice === undefined) {
-        homePrice = outcome.price;
-        used.add(index);
-        return;
-      }
-
-      if (awayScore > homeScore && awayScore >= 2 && awayPrice === undefined) {
-        awayPrice = outcome.price;
-        used.add(index);
-      }
-    });
-
-    outcomes.forEach((outcome, index) => {
-      if (used.has(index)) {
-        return;
-      }
-
-      if (typeof outcome?.price !== 'number') {
-        return;
-      }
-
-      if (homePrice === undefined) {
-        homePrice = outcome.price;
-        used.add(index);
-        return;
-      }
-
-      if (awayPrice === undefined) {
-        awayPrice = outcome.price;
-        used.add(index);
-        return;
-      }
-
-      if (drawPrice === undefined) {
-        drawPrice = outcome.price;
-      }
-    });
-
-    const mapped: SoccerOddsOutcome[] = [];
-    if (homePrice !== undefined) {
-      mapped.push({ name: '1', price: homePrice });
-    }
-    if (drawPrice !== undefined) {
-      mapped.push({ name: 'X', price: drawPrice });
-    }
-    if (awayPrice !== undefined) {
-      mapped.push({ name: '2', price: awayPrice });
-    }
-
-    return mapped;
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
   }
 
-  private teamMatchScore(a: string, b: string): number {
-    const na = this.normalizeTeamName(a);
-    const nb = this.normalizeTeamName(b);
-
-    if (!na || !nb) {
-      return 0;
+  private hash(value: string): number {
+    const text = (value ?? '').toString();
+    let h = 2166136261;
+    for (let i = 0; i < text.length; i += 1) {
+      h ^= text.charCodeAt(i);
+      h = Math.imul(h, 16777619);
     }
-
-    if (na === nb) {
-      return 4;
-    }
-
-    if (na.includes(nb) || nb.includes(na)) {
-      return 3;
-    }
-
-    const aTokens = na.split(' ').filter((token) => token.length > 1);
-    const bTokens = nb.split(' ').filter((token) => token.length > 1);
-    const overlap = aTokens.filter((token) => bTokens.includes(token)).length;
-
-    if (overlap >= 2) {
-      return 2;
-    }
-
-    if (overlap === 1) {
-      const shortA = aTokens.length <= 2 && aTokens.some((token) => token.length <= 4);
-      const shortB = bTokens.length <= 2 && bTokens.some((token) => token.length <= 4);
-      return shortA || shortB ? 2 : 1;
-    }
-
-    return 0;
+    return (h >>> 0) / 4294967295;
   }
 
   private normalizeTeamName(teamName: string): string {
@@ -1027,7 +879,7 @@ export class EspnSoccerService {
       .filter(Boolean) as SoccerRosterPlayer[];
   }
 
-  private mapScheduleAsGames(data: any): SoccerGame[] {
+  private mapScheduleAsGames(data: any, league: string): SoccerGame[] {
     const events =
       (Array.isArray(data?.events) ? data.events : null) ??
       (Array.isArray(data?.items) ? data.items : null) ??
@@ -1042,13 +894,13 @@ export class EspnSoccerService {
         [];
 
       if (Array.isArray(nested) && nested.length) {
-        return this.mapScoreboard({ events: nested });
+        return this.mapScoreboard({ events: nested }, league);
       }
 
       return [];
     }
 
-    return this.mapScoreboard({ events });
+    return this.mapScoreboard({ events }, league);
   }
 
   private findTeamByName(teams: SoccerTeam[], name: string): SoccerTeam | null {
