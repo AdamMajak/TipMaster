@@ -1,0 +1,106 @@
+.user-profile {
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: linear-gradient(155deg, var(--panel), #0e192c);
+  padding: 18px;
+}
+
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 11px;
+  border-radius: 999px;
+  background: rgba(255, 154, 42, 0.1);
+  border: 1px solid rgba(255, 154, 42, 0.22);
+  color: #ffe0b8;
+  font-weight: 700;
+  font-size: 0.76rem;
+  letter-spacing: 0.03em;
+  text-transform: uppercase;
+  text-decoration: none;
+  width: fit-content;
+  margin-bottom: 12px;
+}
+
+.status {
+  margin: 0 0 12px;
+  padding: 12px 14px;
+  border-radius: 14px;
+  border: 1px solid rgba(255, 214, 140, 0.22);
+  background: rgba(255, 214, 140, 0.08);
+  color: #fff0d0;
+  font-size: 0.9rem;
+}
+
+.profile-header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+.avatar {
+  width: 56px;
+  height: 56px;
+  border-radius: 50%;
+  border: 1px solid rgba(89, 125, 177, 0.35);
+}
+.avatar.avatar-placeholder {
+  display: grid;
+  place-items: center;
+  background: rgba(22, 36, 60, 0.8);
+  color: #dce9ff;
+  font-weight: 700;
+  font-size: 1.1rem;
+}
+.profile-header h2 {
+  margin: 0;
+  font-size: 1.35rem;
+  color: #f1f6ff;
+}
+
+.profile-meta {
+  flex: 1;
+  min-width: 0;
+}
+
+.lead {
+  color: #9fb5d8;
+  font-size: 0.86rem;
+}
+.profile-tabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+.profile-tabs button {
+  flex: 1;
+  padding: 10px 12px;
+  background: rgba(22, 36, 60, 0.8);
+  border: 1px solid rgba(63, 95, 139, 0.55);
+  border-radius: 12px;
+  font-weight: 700;
+  color: #dce9ff;
+  cursor: pointer;
+  transition: 0.2s ease;
+}
+.profile-tabs button.active, .profile-tabs button:hover {
+  background: rgba(240, 165, 58, 0.18);
+  border-color: rgba(240, 165, 58, 0.45);
+  color: #ffd89e;
+}
+.profile-content {
+  border-top: 1px solid rgba(43, 67, 104, 0.9);
+  padding-top: 12px;
+  min-height: 200px;
+}
+
+.ghost-btn {
+  border: 1px solid rgba(63, 95, 139, 0.75);
+  background: transparent;
+  color: #dce9ff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  margin-left: auto;
+}

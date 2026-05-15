@@ -41,6 +41,7 @@ export class BetSlipService {
   private readonly ticketsStoragePrefix = 'tipmaster-bets';
   private readonly entriesSignal = signal<BetSelection[]>([]);
   private readonly ticketsSignal = signal<BetTicket[]>([]);
+  private readonly remoteErrorSignal = signal<string | null>(null);
   private ticketsUnsubscribe: Unsubscribe | null = null;
 
   readonly entries = this.entriesSignal.asReadonly();
@@ -49,6 +50,7 @@ export class BetSlipService {
   readonly totalOdds = computed(() =>
     this.entriesSignal().reduce((acc, entry) => acc * entry.odds, 1)
   );
+  readonly remoteError = this.remoteErrorSignal.asReadonly();
 
   constructor() {
     this.entriesSignal.set(this.loadEntries());
@@ -82,8 +84,14 @@ export class BetSlipService {
             .filter((t) => Boolean(t.id));
           this.ticketsSignal.set(tickets);
           this.saveTickets(tickets, userId);
+          this.remoteErrorSignal.set(null);
         },
-        () => {
+        (err: any) => {
+          const message = err?.message ? String(err.message) : 'Unknown error';
+          const code = err?.code ? String(err.code) : '';
+          this.remoteErrorSignal.set(
+            `Nepodarilo sa načítať tikety z Firestore. ${code ? `(${code}) ` : ''}${message}`
+          );
           this.ticketsSignal.set(this.loadTickets(userId));
         }
       );
@@ -155,8 +163,18 @@ export class BetSlipService {
     this.saveTickets(next, userId);
 
     const db = firebaseDb;
-    if (db) {
-      void setDoc(doc(db, 'users', userId, 'tickets', ticket.id), ticket, { merge: true });
+    if (!db) {
+      this.remoteErrorSignal.set('Firestore nie je nakonfigurovaný. Tikety sa ukladajú len lokálne.');
+    } else {
+      void setDoc(doc(db, 'users', userId, 'tickets', ticket.id), ticket, { merge: true })
+        .then(() => this.remoteErrorSignal.set(null))
+        .catch((err: any) => {
+          const message = err?.message ? String(err.message) : 'Unknown error';
+          const code = err?.code ? String(err.code) : '';
+          this.remoteErrorSignal.set(
+            `Nepodarilo sa uložiť tiket do Firestore. ${code ? `(${code}) ` : ''}${message}`
+          );
+        });
     }
 
     this.clear();
@@ -179,8 +197,13 @@ export class BetSlipService {
         const batch = writeBatch(db);
         snap.docs.forEach((d) => batch.delete(d.ref));
         await batch.commit();
-      } catch {
-        // ignore
+        this.remoteErrorSignal.set(null);
+      } catch (err: any) {
+        const message = err?.message ? String(err.message) : 'Unknown error';
+        const code = err?.code ? String(err.code) : '';
+        this.remoteErrorSignal.set(
+          `Nepodarilo sa vymazať tikety z Firestore. ${code ? `(${code}) ` : ''}${message}`
+        );
       }
     })();
   }

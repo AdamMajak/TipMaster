@@ -172,6 +172,16 @@
   font-size: 0.78rem;
 }
 
+.analysis-top .author-link {
+  color: #98afd5;
+  font-size: 0.78rem;
+  text-decoration: none;
+}
+
+.analysis-top .author-link:hover {
+  color: #ffd89e;
+}
+
 .analysis-meta {
   margin: 0;
   color: #a9bedf;

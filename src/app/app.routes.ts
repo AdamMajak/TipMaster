@@ -4,6 +4,7 @@ import { FootballMatch } from './football/match/football-match';
 import { Hockey } from './hockey/hockey';
 import { HockeyMatch } from './hockey/match/hockey-match';
 
+import { UserProfileComponent } from './user/user-profile';
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./home/home').then(m => m.Home) },
   { path: 'analysis', loadComponent: () => import('./analysis/analysis').then(m => m.Analyses) },
@@ -12,5 +13,6 @@ export const routes: Routes = [
   { path: 'football', component: Football },
   { path: 'hockey/match/:eventId', component: HockeyMatch },
   { path: 'hockey', component: Hockey },
+  { path: 'user/:id', component: UserProfileComponent },
   { path: '**', redirectTo: '' },
 ];

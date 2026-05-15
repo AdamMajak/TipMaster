@@ -1,6 +1,6 @@
 import { Component, computed, effect, inject, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
-import { DatePipe } from '@angular/common';
+import { DatePipe, CommonModule } from '@angular/common';
 import { RouterOutlet, RouterLink, RouterLinkActive } from '@angular/router';
 import { BetSlipService } from './shared/betslip.service';
 import { AuthService } from './shared/auth.service';
@@ -9,7 +9,8 @@ import { UserAdminService, UserProfile, UserRole } from './shared/user-admin.ser
 
 @Component({
   selector: 'app-root',
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, FormsModule, DatePipe],
+  standalone: true,
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, FormsModule, CommonModule, DatePipe],
   templateUrl: './app.html',
   styleUrl: './app.css'
 })
@@ -35,6 +36,7 @@ export class App {
   protected readonly selections = this.betSlipService.entries;
   protected readonly selectionCount = this.betSlipService.count;
   protected readonly tickets = this.betSlipService.tickets;
+  protected readonly ticketRemoteError = this.betSlipService.remoteError;
   protected readonly currentUser = this.authService.currentUser;
   protected readonly isAuthenticated = this.authService.isAuthenticated;
   protected readonly isAdmin = this.authService.isAdmin;

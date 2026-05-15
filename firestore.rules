@@ -30,12 +30,22 @@ service cloud.firestore {
       return signedIn() && (bootstrapAdminEmail() || (hasUserDoc() && userDoc().data.role == 'admin'));
     }
 
+    function profileDoc(userId) {
+      return get(/databases/$(database)/documents/users/$(userId));
+    }
+
+    function isProfilePublic(userId) {
+      return signedIn()
+        && exists(/databases/$(database)/documents/users/$(userId))
+        && profileDoc(userId).data.shareProfile == true;
+    }
+
     function incomingOwnsEmail() {
       return signedIn() && request.resource.data.email == authEmail();
     }
 
     match /users/{userId} {
-      allow read: if signedIn() && (isAdmin() || userId == request.auth.uid);
+      allow read: if signedIn() && (isAdmin() || userId == request.auth.uid || resource.data.shareProfile == true);
 
       allow create: if isAdmin()
         || (signedIn()
@@ -53,7 +63,7 @@ service cloud.firestore {
       allow delete: if isAdmin() || (signedIn() && userId == request.auth.uid);
 
       match /tickets/{ticketId} {
-        allow read: if signedIn() && (isAdmin() || userId == request.auth.uid);
+        allow read: if signedIn() && (isAdmin() || userId == request.auth.uid || isProfilePublic(userId));
         allow create: if signedIn() && userId == request.auth.uid
           && request.resource.data.id == ticketId
           && request.resource.data.placedAt is string
@@ -66,7 +76,7 @@ service cloud.firestore {
       }
 
       match /analyses/{analysisId} {
-        allow read: if signedIn() && (isAdmin() || userId == request.auth.uid);
+        allow read: if signedIn() && (isAdmin() || userId == request.auth.uid || isProfilePublic(userId));
         allow create: if signedIn() && userId == request.auth.uid
           && request.resource.data.authorId == request.auth.uid
           && request.resource.data.authorName is string

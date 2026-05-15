@@ -12,7 +12,7 @@
         </article>
         <article>
           <span>Selected</span>
-          <strong>{{ selectedCount() }}</strong>
+          <strong>{{ selectedCount }}</strong>
         </article>
         <article>
           <span>My cards</span>
@@ -30,6 +30,10 @@
         <label class="inline-label">
           Analysis date
           <input type="date" name="analysisDateTop" [(ngModel)]="analysisDate" (ngModelChange)="onAnalysisDateChange()" />
+        </label>
+        <label class="inline-label">
+          Search analyses
+          <input type="text" name="analysisSearch" [(ngModel)]="analysisSearch" placeholder="Author, title, match..." />
         </label>
         <button type="button" class="action ghost" (click)="reloadMatches()" [disabled]="loadingMatches">
           {{ loadingMatches ? 'Refreshing...' : 'Refresh matches' }}
@@ -94,7 +98,7 @@
             <div class="picker-title">
               <div>
                 <strong>Available matches</strong>
-                <p class="mini-copy">Use search or sport filter to narrow the board.</p>
+                <p class="mini-copy">Zápasy pre dátum: <b>{{ analysisDate }}</b></p>
               </div>
               @if (loadingMatches) {
                 <span class="muted">Loading...</span>
@@ -138,10 +142,10 @@
                 <strong>Selected ticket</strong>
                 <p class="mini-copy">Build one focused pick or a grouped multi-match note.</p>
               </div>
-              <span class="count-chip">{{ selectedCount() }} selected</span>
+              <span class="count-chip">{{ selectedCount }} selected</span>
             </div>
 
-            @if (!selectedCount()) {
+            @if (!selectedCount) {
               <p class="lead muted empty-state">Click a match to add it here.</p>
             } @else {
               <div class="selected-list">
@@ -157,7 +161,7 @@
               </div>
             }
 
-            @if (selectedCount()) {
+            @if (selectedCount) {
               <button type="button" class="ghost-btn clear-btn" (click)="clearSelected()">Clear selection</button>
             }
           </div>
@@ -170,7 +174,7 @@
               type="text"
               name="matchLabel"
               [(ngModel)]="matchLabel"
-              [disabled]="selectedCount() > 0"
+              [disabled]="selectedCount > 0"
               placeholder="Used only when nothing is selected"
             />
           </label>
@@ -188,14 +192,14 @@
           <div class="form-row">
             <label>
               Pick
-              @if (selectedCount() !== 1) {
+              @if (selectedCount !== 1) {
                 <select name="pickDisabled" [ngModel]="''" [ngModelOptions]="{ standalone: true }" disabled>
                   <option value="">Select exactly 1 match to pick</option>
                 </select>
               } @else {
                 <select name="pick" [(ngModel)]="pick">
                   <option value="">No pick</option>
-                  @for (option of pickOptions(); track option.value) {
+                  @for (option of pickOptions; track option.value) {
                     <option [value]="option.value">{{ option.label }}</option>
                   }
                 </select>
@@ -210,6 +214,9 @@
 
         @if (formMessage) {
           <p class="status-banner error">{{ formMessage }}</p>
+        }
+        @if (analysisRemoteError()) {
+          <p class="status-banner error">{{ analysisRemoteError() }}</p>
         }
 
         <button type="submit" class="action primary">Add analysis</button>
@@ -290,7 +297,7 @@
           <article class="analysis-card community-card">
             <div class="analysis-top">
               <div class="analysis-title-block">
-                <span class="card-tag accent">{{ item.authorName }}</span>
+                <a [routerLink]="['/user', item.authorId]" class="card-tag accent">{{ item.authorName }}</a>
                 <strong>{{ item.title }}</strong>
               </div>
               <span>{{ item.kickoff ? (item.kickoff | date: 'EEE d MMM, HH:mm') : (item.createdAt | date: 'EEE d MMM, HH:mm') }}</span>

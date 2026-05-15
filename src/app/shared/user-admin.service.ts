@@ -23,6 +23,7 @@ export interface UserProfile {
   lastLoginAt?: string;
   role: UserRole;
   disabled: boolean;
+  shareProfile?: boolean;
 }
 
 type SyncableUser = Pick<UserProfile, 'id' | 'email' | 'name' | 'createdAt'>;
@@ -50,6 +51,20 @@ export class UserAdminService {
 
   getUserById(id: string): UserProfile | null {
     return this.usersSignal().find((item) => item.id === id) ?? null;
+  }
+
+  async setShareProfile(userId: string, share: boolean): Promise<void> {
+    const target = this.getUserById(userId);
+    if (!target) return;
+    const next = { ...target, shareProfile: share };
+    this.upsertUser(next);
+    const db = firebaseDb;
+    if (!db) return;
+    try {
+      await setDoc(doc(db, 'users', userId), { shareProfile: share }, { merge: true });
+    } catch (err: any) {
+      this.syncErrorSignal.set(err?.message ?? 'Failed to update shareProfile.');
+    }
   }
 
   watchAllUsers(enabled: boolean): void {
@@ -370,6 +385,7 @@ export class UserAdminService {
       lastLoginAt: user.lastLoginAt,
       role,
       disabled: Boolean(user.disabled),
+      shareProfile: Boolean(user.shareProfile),
     };
   }
 

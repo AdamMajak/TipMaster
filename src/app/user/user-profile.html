@@ -1,0 +1,48 @@
+<div class="user-profile">
+  <a routerLink="/" class="pill">Späť</a>
+
+  <p *ngIf="loading()">Načítavam profil…</p>
+  <p *ngIf="!loading() && loadError()" class="status">{{ loadError() }}</p>
+
+  <div class="profile-header">
+    <div class="avatar avatar-placeholder" aria-hidden="true">{{ initials() }}</div>
+    <div class="profile-meta">
+      <h2>{{ profile()?.name || 'Používateľ' }}</h2>
+      <div class="lead">
+        @if (profile()?.email) {
+          {{ profile()?.email }}
+        } @else {
+          ID: {{ userId() }}
+        }
+      </div>
+    </div>
+
+    <button *ngIf="isCurrentUser() && profile()" class="ghost-btn" (click)="toggleShareProfile()">
+      {{ profile()?.shareProfile ? 'Zdieľať profil: Áno' : 'Zdieľať profil: Nie' }}
+    </button>
+  </div>
+
+  <div class="profile-tabs">
+    <button *ngIf="canViewTickets()" (click)="activeTab = 'tickets'" [class.active]="activeTab === 'tickets'">Tikety</button>
+    <button (click)="activeTab = 'analyses'" [class.active]="activeTab === 'analyses'">Analýzy</button>
+    <button *ngIf="canViewForm()" (click)="activeTab = 'form'" [class.active]="activeTab === 'form'">Forma</button>
+  </div>
+
+  <div class="profile-content">
+    <ng-container [ngSwitch]="activeTab">
+      <div *ngSwitchCase="'tickets'">
+        <app-user-tickets [userId]="userId()"></app-user-tickets>
+      </div>
+      <div *ngSwitchCase="'analyses'">
+        <app-user-analyses [userId]="userId()"></app-user-analyses>
+      </div>
+      <div *ngSwitchCase="'form'">
+        <app-user-form [userId]="userId()"></app-user-form>
+      </div>
+    </ng-container>
+
+    <p *ngIf="activeTab === 'tickets' && !canViewTickets()" class="status">
+      Tikety sú súkromné. Používateľ musí zapnúť zdieľanie profilu.
+    </p>
+  </div>
+</div>

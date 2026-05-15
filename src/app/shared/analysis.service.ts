@@ -1,4 +1,4 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import {
   collection,
   deleteDoc,
@@ -42,6 +42,9 @@ export class AnalysisService {
   private readonly authService = inject(AuthService);
   private readonly storageKey = 'tipmaster-analyses';
   private readonly legacyStorageKeyPrefix = 'tipmaster-analyses';
+  private readonly remoteErrorSignal = signal<string | null>(null);
+
+  readonly remoteError = this.remoteErrorSignal.asReadonly();
 
   getAll(): UserAnalysis[] {
     if (typeof localStorage === 'undefined') {
@@ -108,18 +111,27 @@ export class AnalysisService {
     this.save(next);
 
     const db = firebaseDb;
-    if (db) {
-      try {
-        const { ratings, ...payload } = this.normalizeAnalysis(analysis);
-        await setDoc(doc(db, 'analyses', payload.id), payload, { merge: true });
+    if (!db) {
+      this.remoteErrorSignal.set('Firestore nie je nakonfigurovaný. Analýzy sa ukladajú len lokálne.');
+      return next;
+    }
 
-        const user = this.authService.currentUser();
-        if (user) {
-          await setDoc(doc(db, 'users', user.id, 'analyses', payload.id), payload, { merge: true });
-        }
-      } catch {
-        // Ignore remote failures; local cache stays available.
+    try {
+      const { ratings, ...payload } = this.normalizeAnalysis(analysis);
+      await setDoc(doc(db, 'analyses', payload.id), payload, { merge: true });
+
+      const user = this.authService.currentUser();
+      if (user) {
+        await setDoc(doc(db, 'users', user.id, 'analyses', payload.id), payload, { merge: true });
       }
+
+      this.remoteErrorSignal.set(null);
+    } catch (err: any) {
+      const message = err?.message ? String(err.message) : 'Unknown error';
+      const code = err?.code ? String(err.code) : '';
+      this.remoteErrorSignal.set(
+        `Nepodarilo sa uložiť analýzu do Firestore. ${code ? `(${code}) ` : ''}${message}`
+      );
     }
     return next;
   }
@@ -141,8 +153,13 @@ export class AnalysisService {
       try {
         await deleteDoc(doc(db, 'analyses', id));
         await deleteDoc(doc(db, 'users', user.id, 'analyses', id));
-      } catch {
-        // Keep local delete even if remote fails.
+        this.remoteErrorSignal.set(null);
+      } catch (err: any) {
+        const message = err?.message ? String(err.message) : 'Unknown error';
+        const code = err?.code ? String(err.code) : '';
+        this.remoteErrorSignal.set(
+          `Nepodarilo sa zmazať analýzu z Firestore. ${code ? `(${code}) ` : ''}${message}`
+        );
       }
     }
     return next;
@@ -171,8 +188,13 @@ export class AnalysisService {
         mySnap.docs.forEach((d) => batch.delete(d.ref));
 
         await batch.commit();
-      } catch {
-        // Keep local delete even if remote fails.
+        this.remoteErrorSignal.set(null);
+      } catch (err: any) {
+        const message = err?.message ? String(err.message) : 'Unknown error';
+        const code = err?.code ? String(err.code) : '';
+        this.remoteErrorSignal.set(
+          `Nepodarilo sa zmazať analýzy autora z Firestore. ${code ? `(${code}) ` : ''}${message}`
+        );
       }
     }
     return next;
@@ -214,8 +236,13 @@ export class AnalysisService {
     if (db) {
       try {
         await setDoc(doc(db, 'analyses', analysisId, 'ratings', user.id), rating, { merge: true });
-      } catch {
-        // Ignore remote failures.
+        this.remoteErrorSignal.set(null);
+      } catch (err: any) {
+        const message = err?.message ? String(err.message) : 'Unknown error';
+        const code = err?.code ? String(err.code) : '';
+        this.remoteErrorSignal.set(
+          `Nepodarilo sa uložiť hodnotenie do Firestore. ${code ? `(${code}) ` : ''}${message}`
+        );
       }
     }
     return next;

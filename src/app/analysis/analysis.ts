@@ -1,6 +1,7 @@
 import { DatePipe } from '@angular/common';
-import { Component, OnInit, computed, effect, inject } from '@angular/core';
+import { Component, OnInit, effect, inject } from '@angular/core';
 import { FormsModule } from '@angular/forms';
+import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, map, of, type Observable } from 'rxjs';
 import { AnalysisRating, AnalysisService, UserAnalysis } from '../shared/analysis.service';
 import { AuthService } from '../shared/auth.service';
@@ -27,7 +28,7 @@ type PickOption = { value: string; label: string };
 
 @Component({
   selector: 'app-analyses',
-  imports: [FormsModule, DatePipe],
+  imports: [FormsModule, DatePipe, RouterLink],
   templateUrl: './analysis.html',
   styleUrl: './analysis.css',
 })
@@ -46,6 +47,7 @@ export class Analyses implements OnInit {
   selectedMatchIds: string[] = [];
   sportFilter: SportFilter = 'all';
   matchSearch = '';
+  analysisSearch = '';
 
   matchLabel = '';
   title = '';
@@ -64,8 +66,12 @@ export class Analyses implements OnInit {
   readonly isAuthenticated = this.authService.isAuthenticated;
   readonly isAdmin = this.authService.isAdmin;
   readonly currentUser = this.authService.currentUser;
-  readonly selectedCount = computed(() => this.selectedMatchIds.length);
-  readonly pickOptions = computed((): PickOption[] => {
+  readonly analysisRemoteError = this.analysisService.remoteError;
+  get selectedCount(): number {
+    return this.selectedMatchIds.length;
+  }
+
+  get pickOptions(): PickOption[] {
     if (this.selectedMatches.length !== 1) {
       return [];
     }
@@ -87,7 +93,7 @@ export class Analyses implements OnInit {
       default:
         return [];
     }
-  });
+  }
 
   constructor(private readonly oddsService: OddsService) {
     effect(() => {
@@ -176,9 +182,14 @@ export class Analyses implements OnInit {
 
   get filteredMatches(): AnalysisMatch[] {
     const search = this.normalizeSearch(this.matchSearch);
+    const dateKey = (this.analysisDate ?? '').trim();
 
     return this.matches.filter((match) => {
       if (this.sportFilter !== 'all' && match.sportKey !== this.sportFilter) {
+        return false;
+      }
+
+      if (dateKey && this.toDayKey(match.kickoff) !== dateKey) {
         return false;
       }
 
@@ -323,7 +334,7 @@ export class Analyses implements OnInit {
       return;
     }
 
-    const options = this.pickOptions();
+    const options = this.pickOptions;
     if (!options.length) {
       this.pick = '';
       return;
@@ -336,12 +347,30 @@ export class Analyses implements OnInit {
 
   myAnalyses(): UserAnalysis[] {
     const currentUserId = this.authService.currentUser()?.id;
-    return this.analyses.filter((item) => item.analysisDate === this.analysisDate && item.authorId === currentUserId);
+    const filtered = this.analyses.filter(
+      (item) => item.analysisDate === this.analysisDate && item.authorId === currentUserId
+    );
+    return this.filterAnalysesBySearch(filtered);
   }
 
   communityAnalyses(): UserAnalysis[] {
     const currentUserId = this.authService.currentUser()?.id;
-    return this.analyses.filter((item) => item.analysisDate === this.analysisDate && item.authorId !== currentUserId);
+    const filtered = this.analyses.filter(
+      (item) => item.analysisDate === this.analysisDate && item.authorId !== currentUserId
+    );
+    return this.filterAnalysesBySearch(filtered);
+  }
+
+  private filterAnalysesBySearch(items: UserAnalysis[]): UserAnalysis[] {
+    const term = this.normalizeSearch(this.analysisSearch);
+    if (!term) {
+      return items;
+    }
+
+    return items.filter((item) => {
+      const haystack = this.normalizeSearch(`${item.authorName} ${item.title} ${item.summary} ${item.matchLabel}`);
+      return haystack.includes(term);
+    });
   }
 
   averageStars(analysis: UserAnalysis): string {
@@ -538,6 +567,20 @@ export class Analyses implements OnInit {
     const month = `${date.getMonth() + 1}`.padStart(2, '0');
     const day = `${date.getDate()}`.padStart(2, '0');
     return `${year}-${month}-${day}`;
+  }
+
+  private toDayKey(isoDate: string): string {
+    const value = isoDate ? new Date(isoDate) : null;
+    if (!value || Number.isNaN(value.getTime())) {
+      return '';
+    }
+
+    return new Intl.DateTimeFormat('sv-SE', {
+      timeZone: 'Europe/Bratislava',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    }).format(value);
   }
 
   private normalizeSearch(value: string): string {

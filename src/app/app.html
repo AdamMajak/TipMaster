@@ -38,6 +38,7 @@
         } @else if (isAuthenticated()) {
           <div class="account-user">
             <div class="account-user-top">
+              <a [routerLink]="['/user', currentUser()?.id]" class="profile-link">Môj profil</a>
               <strong>{{ currentUser()?.name }}</strong>
               @if (isAdmin()) {
                 <span class="role-pill">Admin</span>
@@ -77,6 +78,15 @@
                 <div>
                   <h4>User Management</h4>
                   <p>Promote users, add admins by email, block access, and clear their analyses locally in this browser.</p>
+                  <div class="user-list">
+                    <h5>Profily používateľov</h5>
+                    <ul>
+                      <li *ngFor="let user of managedUsers()">
+                        <a *ngIf="user.shareProfile" [routerLink]="['/user', user.id]">{{ user.name }}</a>
+                        <span *ngIf="!user.shareProfile">{{ user.name }} <span class="muted">(súkromný)</span></span>
+                      </li>
+                    </ul>
+                  </div>
                 </div>
                 <span class="account-badge">Local Admin</span>
               </header>
@@ -253,6 +263,9 @@
           <div class="betslip-footer">
             @if (!isAuthenticated()) {
               <p class="betslip-empty">You can build the slip now, but you must login before placing the bet.</p>
+            }
+            @if (ticketRemoteError()) {
+              <p class="account-message">{{ ticketRemoteError() }}</p>
             }
             <label>
               Stake
