@@ -58,7 +58,7 @@ export class Hockey implements OnInit {
   private reloadLeague(): void {
     this.resetLeagueState();
 
-    this.hockeyService.getScoreboard(this.selectedLeague).subscribe({
+    this.hockeyService.getScoreboard(this.selectedLeague, 14, 7).subscribe({
       next: (games) => {
         this.games = games;
         this.loadingScores = false;
@@ -117,8 +117,14 @@ export class Hockey implements OnInit {
   }
 
   toggleSelection(game: HockeyGame, odd: HockeyOddsOutcome): void {
+    if (!this.canBetGame(game)) {
+      return;
+    }
+
     this.betSlipService.toggleSelection({
       eventId: `hockey-${this.selectedLeague}-${game.id}`,
+      sourceEventId: game.id,
+      league: this.selectedLeague,
       sport: `Hockey (${this.selectedLeague.toUpperCase()})`,
       homeTeam: game.homeTeam,
       awayTeam: game.awayTeam,
@@ -130,6 +136,10 @@ export class Hockey implements OnInit {
 
   isSelected(game: HockeyGame, odd: HockeyOddsOutcome): boolean {
     return this.betSlipService.isSelected(`hockey-${this.selectedLeague}-${game.id}`, odd.name);
+  }
+
+  canBetGame(game: HockeyGame): boolean {
+    return this.isScheduledGame(game) && new Date(game.date).getTime() > Date.now();
   }
 
   private loadTeamDetail(teamId: string): void {

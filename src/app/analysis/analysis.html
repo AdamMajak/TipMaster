@@ -164,6 +164,14 @@
             @if (selectedCount) {
               <button type="button" class="ghost-btn clear-btn" (click)="clearSelected()">Clear selection</button>
             }
+
+            <button
+              type="button"
+              class="ghost-btn"
+              [disabled]="selectedCount !== 1"
+              (click)="generateAiDraft()">
+              AI napis analyzu
+            </button>
           </div>
         </div>
 

@@ -148,8 +148,8 @@ export class EspnTennisService {
     const probabilityB = 1 - probabilityA;
 
     return [
-      { name: '2', price: this.toDecimalOdds(probabilityA) },
-      { name: '1', price: this.toDecimalOdds(probabilityB) },
+      { name: '1', price: this.toDecimalOdds(probabilityA) },
+      { name: '2', price: this.toDecimalOdds(probabilityB) },
     ];
   }
 

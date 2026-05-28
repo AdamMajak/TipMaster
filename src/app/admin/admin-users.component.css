@@ -1,0 +1,228 @@
+.admin-page {
+  display: grid;
+  gap: 14px;
+}
+
+.admin-hero,
+.panel,
+.stats-row article {
+  border: 1px solid var(--line);
+  background: linear-gradient(155deg, var(--panel), #0e192c);
+  border-radius: 8px;
+}
+
+.admin-hero {
+  padding: 18px;
+  display: flex;
+  justify-content: space-between;
+  gap: 14px;
+  align-items: flex-start;
+}
+
+.eyebrow,
+.sync-pill {
+  color: #ffd89e;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.admin-hero h2 {
+  margin: 4px 0;
+  color: #f1f6ff;
+}
+
+.admin-hero p,
+.status-banner,
+.empty-state {
+  margin: 0;
+  color: #9fb5d8;
+}
+
+.sync-pill,
+.role-pill,
+.status-pill {
+  border-radius: 999px;
+  padding: 4px 10px;
+  border: 1px solid rgba(240, 165, 58, 0.35);
+  background: rgba(240, 165, 58, 0.16);
+}
+
+.stats-row {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.stats-row article,
+.panel {
+  padding: 14px;
+}
+
+.stats-row span,
+.user-main span,
+.user-main small,
+.search-box,
+.admin-invite label {
+  color: #9fb5d8;
+  font-size: 0.82rem;
+}
+
+.stats-row strong {
+  display: block;
+  color: #fff1d9;
+  margin-top: 4px;
+}
+
+.tools-panel {
+  display: grid;
+  grid-template-columns: minmax(0, 1.2fr) minmax(0, 1fr);
+  gap: 10px;
+  align-items: end;
+}
+
+.admin-invite,
+.search-box {
+  display: grid;
+  gap: 6px;
+}
+
+input {
+  min-width: 0;
+  border: 1px solid #3f5f8b;
+  background: #16243c;
+  color: #e8f0ff;
+  border-radius: 8px;
+  padding: 9px;
+}
+
+.primary-btn,
+.ghost-btn {
+  border: 1px solid #3f5f8b;
+  color: #dce9ff;
+  border-radius: 999px;
+  padding: 8px 12px;
+  cursor: pointer;
+  text-decoration: none;
+  background: transparent;
+  text-align: center;
+}
+
+.primary-btn {
+  border-color: #f5b25c;
+  background: linear-gradient(120deg, #f09a2b, #f6c26b);
+  color: #1a1f2a;
+  font-weight: 700;
+}
+
+.ghost-btn.danger {
+  border-color: rgba(255, 120, 120, 0.32);
+  color: #ffd7d7;
+}
+
+.ghost-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.users-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.table-head,
+.user-row {
+  display: grid;
+  grid-template-columns: minmax(180px, 1.3fr) minmax(130px, 0.8fr) minmax(150px, 0.8fr) minmax(260px, 1.4fr);
+  gap: 10px;
+  align-items: center;
+}
+
+.table-head {
+  color: #9fb5d8;
+  font-size: 0.76rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  padding: 0 8px 6px;
+}
+
+.user-row {
+  border: 1px solid #314a72;
+  background: #14253f;
+  border-radius: 8px;
+  padding: 10px;
+}
+
+.user-main,
+.user-state,
+.bankroll-cell {
+  display: grid;
+  gap: 5px;
+}
+
+.user-main strong,
+.bankroll-cell strong {
+  color: #f1f6ff;
+}
+
+.role-pill,
+.status-pill {
+  width: fit-content;
+  color: #ffd89e;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.role-pill.muted {
+  border-color: rgba(89, 125, 177, 0.35);
+  background: rgba(63, 95, 139, 0.22);
+  color: #d6e4ff;
+}
+
+.status-pill.active {
+  border-color: rgba(78, 191, 121, 0.32);
+  background: rgba(78, 191, 121, 0.16);
+  color: #d8ffe7;
+}
+
+.status-pill.blocked {
+  border-color: rgba(255, 120, 120, 0.32);
+  background: rgba(255, 120, 120, 0.16);
+  color: #ffd7d7;
+}
+
+.profile-link {
+  color: #ffd89e;
+  text-decoration: none;
+  font-size: 0.8rem;
+}
+
+.funds-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 6px;
+}
+
+.actions-cell {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.row-note {
+  grid-column: 1 / -1;
+  color: #9fb5d8;
+}
+
+@media (max-width: 980px) {
+  .stats-row,
+  .tools-panel,
+  .table-head,
+  .user-row {
+    grid-template-columns: 1fr;
+  }
+
+  .table-head {
+    display: none;
+  }
+}

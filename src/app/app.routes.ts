@@ -13,6 +13,7 @@ export const routes: Routes = [
   { path: 'football', component: Football },
   { path: 'hockey/match/:eventId', component: HockeyMatch },
   { path: 'hockey', component: Hockey },
+  { path: 'admin/users', loadComponent: () => import('./admin/admin-users.component').then(m => m.AdminUsersComponent) },
   { path: 'user/:id', component: UserProfileComponent },
   { path: '**', redirectTo: '' },
 ];

@@ -17,12 +17,17 @@ import {
 
 export interface BetSelection {
   eventId: string;
+  sourceEventId?: string;
+  league?: string;
   sport: string;
   homeTeam: string;
   awayTeam: string;
   kickoff: string;
   market: string;
   odds: number;
+  resultStatus?: 'pending' | 'won' | 'lost' | 'void';
+  resultScore?: string;
+  resultNote?: string;
 }
 
 export interface BetTicket {
@@ -32,6 +37,9 @@ export interface BetTicket {
   totalOdds: number;
   potentialWin: number;
   selections: BetSelection[];
+  status?: 'pending' | 'won' | 'lost' | 'void';
+  settledAt?: string;
+  returnedAmount?: number;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -39,13 +47,17 @@ export class BetSlipService {
   private readonly authService = inject(AuthService);
   private readonly entriesStorageKey = 'tipmaster-betslip';
   private readonly ticketsStoragePrefix = 'tipmaster-bets';
+  private readonly budgetStoragePrefix = 'tipmaster-budget';
   private readonly entriesSignal = signal<BetSelection[]>([]);
   private readonly ticketsSignal = signal<BetTicket[]>([]);
+  private readonly budgetSignal = signal<number>(100);
   private readonly remoteErrorSignal = signal<string | null>(null);
   private ticketsUnsubscribe: Unsubscribe | null = null;
+  private budgetUnsubscribe: Unsubscribe | null = null;
 
   readonly entries = this.entriesSignal.asReadonly();
   readonly tickets = this.ticketsSignal.asReadonly();
+  readonly budget = this.budgetSignal.asReadonly();
   readonly count = computed(() => this.entriesSignal().length);
   readonly totalOdds = computed(() =>
     this.entriesSignal().reduce((acc, entry) => acc * entry.odds, 1)
@@ -59,14 +71,33 @@ export class BetSlipService {
       const user = this.authService.currentUser();
       this.ticketsUnsubscribe?.();
       this.ticketsUnsubscribe = null;
+      this.budgetUnsubscribe?.();
+      this.budgetUnsubscribe = null;
 
       const userId = user?.id;
       this.ticketsSignal.set(this.loadTickets(userId));
+      this.budgetSignal.set(this.loadBudget(userId));
 
       const db = firebaseDb;
       if (!db || !userId) {
         return;
       }
+
+      this.budgetUnsubscribe = onSnapshot(
+        doc(db, 'users', userId),
+        (snapshot) => {
+          const remoteBudget = snapshot.data()?.['bettingBudget'];
+          if (typeof remoteBudget === 'number' && Number.isFinite(remoteBudget) && remoteBudget >= 0) {
+            this.budgetSignal.set(remoteBudget);
+            this.saveBudget(remoteBudget, userId);
+          } else {
+            this.persistBudget(this.budgetSignal(), userId);
+          }
+        },
+        () => {
+          this.budgetSignal.set(this.loadBudget(userId));
+        }
+      );
 
       const q = query(
         collection(db, 'users', userId, 'tickets'),
@@ -99,6 +130,11 @@ export class BetSlipService {
   }
 
   toggleSelection(selection: BetSelection): void {
+    if (!this.isSelectionBettable(selection)) {
+      this.remoteErrorSignal.set('Tento zapas uz zacal alebo je v minulosti, preto sa neda pridat na tiket.');
+      return;
+    }
+
     const current = this.entriesSignal();
     const exists = current.find(
       (item) => item.eventId === selection.eventId && item.market === selection.market
@@ -117,6 +153,7 @@ export class BetSlipService {
     const withoutSameEvent = current.filter((item) => item.eventId !== selection.eventId);
     this.entriesSignal.set([...withoutSameEvent, selection]);
     this.saveEntries(this.entriesSignal());
+    this.remoteErrorSignal.set(null);
   }
 
   removeSelection(eventId: string, market: string): void {
@@ -147,20 +184,28 @@ export class BetSlipService {
       return null;
     }
 
+    const safeStake = Math.round(Number(stake) * 100) / 100;
+    if (!Number.isFinite(safeStake) || safeStake <= 0 || safeStake > this.budgetSignal()) {
+      return null;
+    }
+
     const totalOdds = this.totalOdds();
     const userSlug = this.slugify(user?.name ?? user?.email ?? 'user');
     const ticket: BetTicket = {
       id: `ticket-${Date.now()}-${userSlug}`,
       placedAt: new Date().toISOString(),
-      stake,
+      stake: safeStake,
       totalOdds,
-      potentialWin: totalOdds * stake,
-      selections,
+      potentialWin: totalOdds * safeStake,
+      selections: selections.map((selection) => ({ ...selection, resultStatus: 'pending' })),
+      status: 'pending',
+      returnedAmount: 0,
     };
 
     const next = [ticket, ...this.ticketsSignal()];
     this.ticketsSignal.set(next);
     this.saveTickets(next, userId);
+    this.setBudget(this.budgetSignal() - safeStake, userId);
 
     const db = firebaseDb;
     if (!db) {
@@ -179,6 +224,46 @@ export class BetSlipService {
 
     this.clear();
     return ticket;
+  }
+
+  updateBudget(value: number): void {
+    const userId = this.authService.currentUser()?.id;
+    const safeValue = Math.max(0, Math.round(Number(value) * 100) / 100);
+    if (!Number.isFinite(safeValue)) {
+      return;
+    }
+    this.setBudget(safeValue, userId);
+  }
+
+  settleTicket(ticket: BetTicket): void {
+    const userId = this.authService.currentUser()?.id;
+    if (!userId || !ticket.id) {
+      return;
+    }
+
+    const current = this.ticketsSignal();
+    const previous = current.find((item) => item.id === ticket.id);
+    const nextTicket = this.normalizeTicket(ticket);
+    const next = current.map((item) => (item.id === nextTicket.id ? nextTicket : item));
+    this.ticketsSignal.set(next);
+    this.saveTickets(next, userId);
+
+    if ((previous?.status ?? 'pending') === 'pending' && nextTicket.status === 'won') {
+      this.setBudget(this.budgetSignal() + (nextTicket.returnedAmount ?? nextTicket.potentialWin), userId);
+    }
+
+    const db = firebaseDb;
+    if (db) {
+      void setDoc(doc(db, 'users', userId, 'tickets', nextTicket.id), nextTicket, { merge: true })
+        .then(() => this.remoteErrorSignal.set(null))
+        .catch((err: any) => {
+          const message = err?.message ? String(err.message) : 'Unknown error';
+          const code = err?.code ? String(err.code) : '';
+          this.remoteErrorSignal.set(
+            `Nepodarilo sa uložiť vyhodnotený tiket do Firestore. ${code ? `(${code}) ` : ''}${message}`
+          );
+        });
+    }
   }
 
   clearTickets(): void {
@@ -238,7 +323,7 @@ export class BetSlipService {
     try {
       const raw = localStorage.getItem(this.ticketsKey(userId));
       const parsed = raw ? (JSON.parse(raw) as BetTicket[]) : [];
-      return Array.isArray(parsed) ? parsed : [];
+      return Array.isArray(parsed) ? parsed.map((ticket) => this.normalizeTicket(ticket)) : [];
     } catch {
       return [];
     }
@@ -248,7 +333,78 @@ export class BetSlipService {
     if (!userId || typeof localStorage === 'undefined') {
       return;
     }
-    localStorage.setItem(this.ticketsKey(userId), JSON.stringify(items));
+    localStorage.setItem(this.ticketsKey(userId), JSON.stringify(items.map((ticket) => this.normalizeTicket(ticket))));
+  }
+
+  private loadBudget(userId?: string): number {
+    if (!userId || typeof localStorage === 'undefined') {
+      return 100;
+    }
+    const parsed = Number(localStorage.getItem(this.budgetKey(userId)));
+    return Number.isFinite(parsed) && parsed >= 0 ? parsed : 100;
+  }
+
+  private setBudget(value: number, userId?: string): void {
+    const safeValue = Math.max(0, Math.round(value * 100) / 100);
+    this.budgetSignal.set(safeValue);
+    if (!userId) {
+      return;
+    }
+    this.saveBudget(safeValue, userId);
+    this.persistBudget(safeValue, userId);
+  }
+
+  private saveBudget(value: number, userId: string): void {
+    if (typeof localStorage === 'undefined') {
+      return;
+    }
+    localStorage.setItem(this.budgetKey(userId), String(value));
+  }
+
+  private persistBudget(value: number, userId: string): void {
+    const db = firebaseDb;
+    if (!db) {
+      return;
+    }
+
+    void setDoc(doc(db, 'users', userId), { bettingBudget: value }, { merge: true }).catch((err: any) => {
+      const message = err?.message ? String(err.message) : 'Unknown error';
+      const code = err?.code ? String(err.code) : '';
+      this.remoteErrorSignal.set(
+        `Nepodarilo sa ulozit rozpocet do Firestore. ${code ? `(${code}) ` : ''}${message}`
+      );
+    });
+  }
+
+  private budgetKey(userId: string): string {
+    return `${this.budgetStoragePrefix}:${userId}`;
+  }
+
+  private normalizeTicket(ticket: BetTicket): BetTicket {
+    const selections = Array.isArray(ticket.selections) ? ticket.selections : [];
+    const status = ticket.status ?? this.deriveTicketStatus(selections);
+    return {
+      ...ticket,
+      status,
+      returnedAmount: ticket.returnedAmount ?? (status === 'won' ? ticket.potentialWin : 0),
+      selections: selections.map((selection) => ({
+        ...selection,
+        resultStatus: selection.resultStatus ?? 'pending',
+      })),
+    };
+  }
+
+  private deriveTicketStatus(selections: BetSelection[]): BetTicket['status'] {
+    if (!selections.length || selections.some((selection) => (selection.resultStatus ?? 'pending') === 'pending')) {
+      return 'pending';
+    }
+    if (selections.some((selection) => selection.resultStatus === 'lost')) {
+      return 'lost';
+    }
+    if (selections.every((selection) => selection.resultStatus === 'void')) {
+      return 'void';
+    }
+    return 'won';
   }
   private ticketsKey(userId: string): string {
     return `${this.ticketsStoragePrefix}:${userId}`;
@@ -265,5 +421,14 @@ export class BetSlipService {
       .trim();
 
     return normalized || 'user';
+  }
+
+  private isSelectionBettable(selection: BetSelection): boolean {
+    const kickoff = new Date(selection.kickoff).getTime();
+    if (!Number.isFinite(kickoff)) {
+      return true;
+    }
+
+    return kickoff > Date.now();
   }
 }

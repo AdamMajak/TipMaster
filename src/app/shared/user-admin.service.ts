@@ -24,6 +24,7 @@ export interface UserProfile {
   role: UserRole;
   disabled: boolean;
   shareProfile?: boolean;
+  bettingBudget?: number;
 }
 
 type SyncableUser = Pick<UserProfile, 'id' | 'email' | 'name' | 'createdAt'>;
@@ -213,6 +214,7 @@ export class UserAdminService {
           lastLoginAt: nextUser.lastLoginAt ?? null,
           role: nextUser.role,
           disabled: nextUser.disabled,
+          bettingBudget: nextUser.bettingBudget ?? 100,
         },
         { merge: true }
       );
@@ -277,6 +279,38 @@ export class UserAdminService {
       await setDoc(doc(db, 'users', userId), { disabled: next.disabled }, { merge: true });
     } catch (err: any) {
       this.syncErrorSignal.set(err?.message ?? 'Failed to update user status.');
+    }
+  }
+
+  async addBankroll(userId: string, amount: number): Promise<void> {
+    const target = this.getUserById(userId);
+    const safeAmount = Math.round(Number(amount) * 100) / 100;
+    if (!target || !Number.isFinite(safeAmount) || safeAmount <= 0) {
+      return;
+    }
+
+    await this.setBankroll(userId, (target.bettingBudget ?? 100) + safeAmount);
+  }
+
+  async setBankroll(userId: string, value: number): Promise<void> {
+    const target = this.getUserById(userId);
+    const safeValue = Math.max(0, Math.round(Number(value) * 100) / 100);
+    if (!target || !Number.isFinite(safeValue)) {
+      return;
+    }
+
+    const next = { ...target, bettingBudget: safeValue };
+    this.upsertUser(next);
+
+    const db = firebaseDb;
+    if (!db) {
+      return;
+    }
+
+    try {
+      await setDoc(doc(db, 'users', userId), { bettingBudget: safeValue }, { merge: true });
+    } catch (err: any) {
+      this.syncErrorSignal.set(err?.message ?? 'Failed to update bankroll.');
     }
   }
 
@@ -386,6 +420,10 @@ export class UserAdminService {
       role,
       disabled: Boolean(user.disabled),
       shareProfile: Boolean(user.shareProfile),
+      bettingBudget:
+        typeof user.bettingBudget === 'number' && Number.isFinite(user.bettingBudget)
+          ? Math.max(0, Math.round(user.bettingBudget * 100) / 100)
+          : 100,
     };
   }
 

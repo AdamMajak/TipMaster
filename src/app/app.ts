@@ -6,6 +6,7 @@ import { BetSlipService } from './shared/betslip.service';
 import { AuthService } from './shared/auth.service';
 import { AnalysisService } from './shared/analysis.service';
 import { UserAdminService, UserProfile, UserRole } from './shared/user-admin.service';
+import { TicketSettlementService } from './shared/ticket-settlement.service';
 
 @Component({
   selector: 'app-root',
@@ -19,9 +20,12 @@ export class App {
   private readonly authService = inject(AuthService);
   private readonly analysisService = inject(AnalysisService);
   private readonly userAdminService = inject(UserAdminService);
+  private readonly ticketSettlementService = inject(TicketSettlementService);
 
   protected readonly title = signal('TipMaster');
   protected stake = 10;
+  protected budgetDraft = 100;
+  protected evaluatingTickets = false;
   protected authMode: 'login' | 'register' = 'login';
   protected loginEmail = '';
   protected loginPassword = '';
@@ -32,10 +36,13 @@ export class App {
   protected authPending = false;
   protected inviteAdminEmail = '';
   protected adminInviteMessage = '';
+  protected adminUserSearch = '';
+  protected bankrollDrafts: Record<string, number> = {};
 
   protected readonly selections = this.betSlipService.entries;
   protected readonly selectionCount = this.betSlipService.count;
   protected readonly tickets = this.betSlipService.tickets;
+  protected readonly budget = this.betSlipService.budget;
   protected readonly ticketRemoteError = this.betSlipService.remoteError;
   protected readonly currentUser = this.authService.currentUser;
   protected readonly isAuthenticated = this.authService.isAuthenticated;
@@ -52,8 +59,18 @@ export class App {
       .getAllUsers()
       .sort((a, b) => new Date(b.lastLoginAt ?? b.createdAt).getTime() - new Date(a.lastLoginAt ?? a.createdAt).getTime());
   });
+  protected readonly filteredManagedUsers = computed(() => {
+    const term = this.normalizeSearch(this.adminUserSearch);
+    if (!term) {
+      return this.managedUsers();
+    }
+
+    return this.managedUsers().filter((user) =>
+      this.normalizeSearch(`${user.name} ${user.email} ${user.role}`).includes(term)
+    );
+  });
   protected readonly canPlaceBet = computed(
-    () => this.betSlipService.count() > 0 && this.stake > 0
+    () => this.betSlipService.count() > 0 && this.stake > 0 && this.stake <= this.betSlipService.budget()
   );
 
   protected readonly totalOdds = computed(() => {
@@ -64,6 +81,10 @@ export class App {
   constructor() {
     effect(() => {
       this.userAdminService.watchAllUsers(this.isAdmin());
+    });
+
+    effect(() => {
+      this.budgetDraft = this.betSlipService.budget();
     });
   }
 
@@ -180,6 +201,59 @@ export class App {
     this.betSlipService.placeBet(this.stake);
   }
 
+  protected bankrollDraft(user: UserProfile): number {
+    if (this.bankrollDrafts[user.id] === undefined) {
+      this.bankrollDrafts[user.id] = 10;
+    }
+    return this.bankrollDrafts[user.id];
+  }
+
+  protected setBankrollDraft(userId: string, value: number | string | null): void {
+    const parsed = Number(value);
+    this.bankrollDrafts[userId] = Number.isFinite(parsed) ? parsed : 0;
+  }
+
+  protected async addBankroll(userId: string): Promise<void> {
+    const currentUser = this.currentUser();
+    const targetUser = this.managedUsers().find((item) => item.id === userId);
+    if (!currentUser || currentUser.role !== 'admin' || !targetUser || !this.canManageUser(targetUser)) {
+      return;
+    }
+
+    await this.userAdminService.addBankroll(userId, this.bankrollDrafts[userId] ?? 0);
+    this.bankrollDrafts[userId] = 10;
+  }
+
+  protected updateBudget(): void {
+    this.betSlipService.updateBudget(this.budgetDraft);
+  }
+
+  protected async evaluateTickets(): Promise<void> {
+    this.evaluatingTickets = true;
+    try {
+      const pendingTickets = this.tickets().filter((ticket) => (ticket.status ?? 'pending') === 'pending');
+      for (const ticket of pendingTickets) {
+        const evaluated = await this.ticketSettlementService.evaluate(ticket);
+        this.betSlipService.settleTicket(evaluated);
+      }
+    } finally {
+      this.evaluatingTickets = false;
+    }
+  }
+
+  protected ticketStatusLabel(status: string | undefined): string {
+    switch (status) {
+      case 'won':
+        return 'Vyhrany';
+      case 'lost':
+        return 'Prehrany';
+      case 'void':
+        return 'Storno';
+      default:
+        return 'Caka';
+    }
+  }
+
   protected clearHistory(): void {
     this.betSlipService.clearTickets();
   }
@@ -202,5 +276,13 @@ export class App {
 
   protected isProtectedAdmin(user: UserProfile): boolean {
     return this.userAdminService.isProtectedAdmin(user);
+  }
+
+  private normalizeSearch(value: string): string {
+    return value
+      .trim()
+      .toLowerCase()
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '');
   }
 }

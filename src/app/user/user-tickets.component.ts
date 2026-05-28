@@ -9,25 +9,39 @@ import { firebaseDb } from '../shared/firebase.config';
   standalone: true,
   imports: [CommonModule, DatePipe, DecimalPipe],
   template: `
-    <p *ngIf="loading" class="status">Načítavam tikety…</p>
+    <p *ngIf="loading" class="status">Nacitavam tikety...</p>
     <p *ngIf="!loading && error" class="status error">{{ error }}</p>
 
     <div *ngIf="!loading && tickets.length; else noTickets">
       <div *ngFor="let ticket of tickets" class="ticket-card">
-        <div><strong>Stávka:</strong> {{ ticket.stake }} €</div>
-        <div><strong>Výhra:</strong> {{ ticket.potentialWin | number: '1.2-2' }} €</div>
-        <div><strong>Kurzy:</strong> {{ ticket.totalOdds | number: '1.2-2' }}</div>
-        <div><strong>Dátum:</strong> {{ ticket.placedAt | date: 'short' }}</div>
-        <div class="selections">
-          <span *ngFor="let sel of ticket.selections">
-            {{ sel.homeTeam }} - {{ sel.awayTeam }} ({{ sel.market }})
+        <div class="ticket-head">
+          <div>
+            <strong>{{ ticket.placedAt | date: 'short' }}</strong>
+            <span>{{ ticket.selections.length }} tipy</span>
+          </div>
+          <span class="ticket-status" [class.won]="ticket.status === 'won'" [class.lost]="ticket.status === 'lost'">
+            {{ statusLabel(ticket.status) }}
           </span>
+        </div>
+        <div class="ticket-metrics">
+          <span>Stavka <b>{{ ticket.stake }} EUR</b></span>
+          <span>Kurz <b>{{ ticket.totalOdds | number: '1.2-2' }}</b></span>
+          <span>Vyhra <b>{{ ticket.potentialWin | number: '1.2-2' }} EUR</b></span>
+        </div>
+        <div class="selections">
+          <div *ngFor="let sel of ticket.selections" class="selection-row">
+            <div>
+              <strong>{{ sel.homeTeam }} - {{ sel.awayTeam }}</strong>
+              <span>Tip {{ sel.market }} | Kurz {{ sel.odds }}</span>
+            </div>
+            <span>{{ statusLabel(sel.resultStatus) }} {{ sel.resultScore || '' }}</span>
+          </div>
         </div>
       </div>
     </div>
 
     <ng-template #noTickets>
-      <p *ngIf="!loading">Žiadne tikety.</p>
+      <p *ngIf="!loading">Ziadne tikety.</p>
     </ng-template>
   `,
   styles: [
@@ -49,14 +63,77 @@ import { firebaseDb } from '../shared/firebase.config';
         border-radius: 8px;
         margin-bottom: 1rem;
         padding: 1rem;
+        display: grid;
+        gap: 10px;
+      }
+      .ticket-head,
+      .selection-row {
+        display: flex;
+        justify-content: space-between;
+        gap: 10px;
+        align-items: flex-start;
+      }
+      .ticket-head span,
+      .selection-row span {
+        color: #9fb5d8;
+        font-size: 0.82rem;
+      }
+      .ticket-status {
+        border: 1px solid #3f5f8b;
+        background: #1c2e4c;
+        border-radius: 999px;
+        padding: 4px 9px;
+        color: #dce9ff;
+        font-size: 0.76rem;
+        font-weight: 700;
+      }
+      .ticket-status.won {
+        border-color: rgba(78, 191, 121, 0.38);
+        background: rgba(78, 191, 121, 0.16);
+        color: #d8ffe7;
+      }
+      .ticket-status.lost {
+        border-color: rgba(255, 120, 120, 0.32);
+        background: rgba(255, 120, 120, 0.16);
+        color: #ffd7d7;
+      }
+      .ticket-metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 8px;
+      }
+      .ticket-metrics span {
+        border: 1px solid #263f64;
+        background: #101f36;
+        border-radius: 7px;
+        padding: 8px;
+        color: #9fb5d8;
+        font-size: 0.76rem;
+      }
+      .ticket-metrics b {
+        display: block;
+        color: #fff1d9;
+        margin-top: 2px;
       }
       .selections {
-        margin-top: 0.5rem;
-        font-size: 0.95em;
-        color: #9fb5d8;
-        display: flex;
-        flex-wrap: wrap;
-        gap: 0.5em;
+        display: grid;
+        gap: 8px;
+      }
+      .selection-row {
+        border-top: 1px solid #263f64;
+        padding-top: 8px;
+      }
+      .selection-row strong {
+        color: #f1f6ff;
+      }
+      @media (max-width: 640px) {
+        .ticket-head,
+        .selection-row {
+          display: grid;
+        }
+        .ticket-metrics {
+          grid-template-columns: 1fr;
+        }
       }
     `,
   ],
@@ -79,6 +156,19 @@ export class UserTicketsComponent implements OnChanges, OnDestroy {
     this.unsubscribe = null;
   }
 
+  statusLabel(status: string | undefined): string {
+    switch (status) {
+      case 'won':
+        return 'Vyhrany';
+      case 'lost':
+        return 'Prehrany';
+      case 'void':
+        return 'Storno';
+      default:
+        return 'Caka';
+    }
+  }
+
   private subscribeTickets(): void {
     this.unsubscribe?.();
     this.unsubscribe = null;
@@ -92,7 +182,7 @@ export class UserTicketsComponent implements OnChanges, OnDestroy {
 
     const db = firebaseDb;
     if (!db) {
-      this.error = 'Firestore nie je nakonfigurovaný.';
+      this.error = 'Firestore nie je nakonfigurovany.';
       this.tickets = [];
       this.loading = false;
       return;
@@ -113,7 +203,7 @@ export class UserTicketsComponent implements OnChanges, OnDestroy {
         this.loading = false;
       },
       (err) => {
-        this.error = err?.message ?? 'Nepodarilo sa načítať tikety.';
+        this.error = err?.message ?? 'Nepodarilo sa nacitat tikety.';
         this.tickets = [];
         this.loading = false;
       }

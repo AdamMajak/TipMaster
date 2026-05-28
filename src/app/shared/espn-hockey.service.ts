@@ -188,8 +188,8 @@ export class EspnHockeyService {
     return `${ESPN_HOCKEY_BASE_URL}/${safeLeague}/summary?event=${safeEvent}`;
   }
 
-  getScoreboard(league: string): Observable<HockeyGame[]> {
-    const dates = this.buildScoreboardDates();
+  getScoreboard(league: string, daysBack = 1, daysForward = 5): Observable<HockeyGame[]> {
+    const dates = this.buildScoreboardDates(daysBack, daysForward);
     const requests = dates.map((date) =>
       this.http.get<any>(`${this.leagueBaseUrl(league)}/scoreboard?dates=${date}`)
     );
@@ -426,12 +426,12 @@ export class EspnHockeyService {
     return Math.min(max, Math.max(min, value));
   }
 
-  private buildScoreboardDates(): string[] {
+  private buildScoreboardDates(daysBack = 1, daysForward = 5): string[] {
     const today = new Date();
     const dates: Date[] = [];
 
     // Include upcoming fixtures as well as recent games.
-    for (let offset = -1; offset <= 5; offset += 1) {
+    for (let offset = -Math.max(0, daysBack); offset <= Math.max(0, daysForward); offset += 1) {
       const date = new Date(today);
       date.setDate(today.getDate() + offset);
       dates.push(date);

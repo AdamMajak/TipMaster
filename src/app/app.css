@@ -270,6 +270,31 @@
   gap: 10px;
 }
 
+.admin-filter-row {
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.admin-filter-row label,
+.admin-money-row label {
+  display: grid;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: #9fb5d8;
+}
+
+.admin-filter-row input,
+.admin-money-row input {
+  min-width: 0;
+  border: 1px solid #3f5f8b;
+  background: #16243c;
+  color: #e8f0ff;
+  border-radius: 8px;
+  padding: 8px;
+}
+
 .admin-invite {
   display: grid;
   gap: 8px;
@@ -324,6 +349,28 @@
   color: #9fb5d8;
 }
 
+.admin-money-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 92px auto;
+  gap: 8px;
+  align-items: end;
+  border: 1px solid #263f64;
+  background: #101f36;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.admin-money-row span {
+  color: #9fb5d8;
+  font-size: 0.76rem;
+}
+
+.admin-money-row strong {
+  display: block;
+  color: #fff1d9;
+  margin-top: 2px;
+}
+
 .admin-actions {
   display: flex;
   gap: 8px;
@@ -370,6 +417,40 @@
   margin: 0;
   color: #9fb5d8;
   font-size: 0.9rem;
+}
+
+.budget-box {
+  border: 1px solid #314a72;
+  background: #14253f;
+  border-radius: 10px;
+  padding: 10px;
+  margin-bottom: 10px;
+  display: grid;
+  grid-template-columns: 1fr 110px;
+  gap: 10px;
+  align-items: end;
+}
+
+.budget-box span,
+.budget-box label {
+  color: #9fb5d8;
+  font-size: 0.78rem;
+}
+
+.budget-box strong {
+  display: block;
+  color: #fff1d9;
+  margin-top: 3px;
+}
+
+.budget-box input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #3f5f8b;
+  background: #16243c;
+  color: #e8f0ff;
+  border-radius: 8px;
+  padding: 7px;
 }
 
 .betslip-items {
@@ -454,6 +535,26 @@
   padding: 8px;
 }
 
+.slip-summary {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.slip-summary div {
+  border: 1px solid #314a72;
+  background: #14253f;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.slip-summary span {
+  display: block;
+  color: #9fb5d8;
+  font-size: 0.74rem;
+  margin-bottom: 3px;
+}
+
 .bet-btn {
   border: 1px solid #f5b25c;
   background: linear-gradient(120deg, #f09a2b, #f6c26b);
@@ -490,6 +591,8 @@
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
 }
 
 .betslip-history h4 {
@@ -523,14 +626,58 @@
 .history-top {
   display: flex;
   justify-content: space-between;
+  gap: 8px;
   color: #e9f0ff;
   font-size: 0.82rem;
+}
+
+.ticket-status {
+  border: 1px solid #3f5f8b;
+  background: #1c2e4c;
+  border-radius: 999px;
+  padding: 3px 8px;
+  color: #dce9ff;
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.ticket-status.won {
+  border-color: rgba(78, 191, 121, 0.38);
+  background: rgba(78, 191, 121, 0.16);
+  color: #d8ffe7;
+}
+
+.ticket-status.lost {
+  border-color: rgba(255, 120, 120, 0.32);
+  background: rgba(255, 120, 120, 0.16);
+  color: #ffd7d7;
 }
 
 .history-meta {
   margin: 0;
   color: #b7c8e6;
   font-size: 0.8rem;
+}
+
+.history-metrics {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 6px;
+}
+
+.history-metrics span {
+  border: 1px solid #263f64;
+  background: #101f36;
+  border-radius: 7px;
+  padding: 6px;
+  color: #9fb5d8;
+  font-size: 0.72rem;
+}
+
+.history-metrics b {
+  display: block;
+  color: #fff1d9;
+  margin-top: 2px;
 }
 
 .history-picks {
@@ -557,5 +704,11 @@
 
   .betslip {
     position: static;
+  }
+
+  .admin-filter-row,
+  .admin-money-row,
+  .history-metrics {
+    grid-template-columns: 1fr;
   }
 }

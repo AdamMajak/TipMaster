@@ -4,6 +4,7 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { catchError, forkJoin, map, of, type Observable } from 'rxjs';
 import { AnalysisRating, AnalysisService, UserAnalysis } from '../shared/analysis.service';
+import { AiAnalysisService } from '../shared/ai-analysis.service';
 import { AuthService } from '../shared/auth.service';
 import { EspnHockeyService, HockeyGame } from '../shared/espn-hockey.service';
 import { ESPN_SOCCER_LEAGUES } from '../shared/espn-soccer-leagues';
@@ -35,6 +36,7 @@ type PickOption = { value: string; label: string };
 export class Analyses implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly analysisService = inject(AnalysisService);
+  private readonly aiAnalysisService = inject(AiAnalysisService);
   private readonly soccerService = inject(EspnSoccerService);
   private readonly hockeyService = inject(EspnHockeyService);
   private readonly tennisService = inject(EspnTennisService);
@@ -228,6 +230,20 @@ export class Analyses implements OnInit {
   clearSelected(): void {
     this.selectedMatchIds = [];
     this.ensurePickValid();
+  }
+
+  generateAiDraft(): void {
+    if (this.selectedMatches.length !== 1) {
+      this.formMessage = 'Select exactly one match for AI draft.';
+      return;
+    }
+
+    const draft = this.aiAnalysisService.buildDraft(this.selectedMatches[0]);
+    this.title = draft.title;
+    this.summary = draft.summary;
+    this.pick = draft.pick ?? '';
+    this.confidence = draft.confidence;
+    this.formMessage = '';
   }
 
   formatMatch(match: AnalysisMatch): string {

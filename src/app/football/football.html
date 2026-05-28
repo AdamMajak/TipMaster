@@ -71,7 +71,7 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
-                    @if (game.odds.length) {
+                    @if (canBetGame(game) && game.odds.length) {
                       <div class="card-actions">
                         <a
                           class="detail-link"
@@ -137,7 +137,7 @@
                     @if (game.venue) {
                       <p class="meta">Venue: {{ game.venue }}</p>
                     }
-                    @if (game.odds.length) {
+                    @if (canBetGame(game) && game.odds.length) {
                       <div class="card-actions">
                         <a
                           class="detail-link"
@@ -212,7 +212,7 @@
                       @if (game.venue) {
                         <p class="meta">Venue: {{ game.venue }}</p>
                       }
-                      @if (game.odds.length) {
+                      @if (canBetGame(game) && game.odds.length) {
                         <div class="card-actions">
                           <a
                             class="detail-link"
@@ -276,7 +276,7 @@
                       @if (game.venue) {
                         <p class="meta">Venue: {{ game.venue }}</p>
                       }
-                      @if (game.odds.length) {
+                      @if (canBetGame(game) && game.odds.length) {
                         <div class="card-actions">
                           <a
                             class="detail-link"

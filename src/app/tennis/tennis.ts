@@ -60,8 +60,14 @@ export class Tennis implements OnInit {
   }
 
   toggleSelection(game: TennisGame, odd: TennisOddsOutcome): void {
+    if (!this.canBetGame(game)) {
+      return;
+    }
+
     this.betSlipService.toggleSelection({
       eventId: `tennis-${this.selectedLeague}-${game.id}`,
+      sourceEventId: game.id,
+      league: this.selectedLeague,
       sport: `Tennis (${this.selectedLeague.toUpperCase()})`,
       homeTeam: game.playerA,
       awayTeam: game.playerB,
@@ -73,6 +79,10 @@ export class Tennis implements OnInit {
 
   isSelected(game: TennisGame, odd: TennisOddsOutcome): boolean {
     return this.betSlipService.isSelected(`tennis-${this.selectedLeague}-${game.id}`, odd.name);
+  }
+
+  canBetGame(game: TennisGame): boolean {
+    return this.isScheduledGame(game) && new Date(game.date).getTime() > Date.now();
   }
 
   private reloadLeague(): void {

@@ -94,8 +94,14 @@ export class Football implements OnInit {
   }
 
   toggleSelection(game: SoccerGame, odd: SoccerOddsOutcome): void {
+    if (!this.canBetGame(game)) {
+      return;
+    }
+
     this.betSlipService.toggleSelection({
       eventId: `football-${this.selectedLeague}-${game.id}`,
+      sourceEventId: game.id,
+      league: this.selectedLeague,
       sport: `Football (${this.selectedLeague})`,
       homeTeam: game.homeTeam,
       awayTeam: game.awayTeam,
@@ -107,6 +113,10 @@ export class Football implements OnInit {
 
   isSelected(game: SoccerGame, odd: SoccerOddsOutcome): boolean {
     return this.betSlipService.isSelected(`football-${this.selectedLeague}-${game.id}`, odd.name);
+  }
+
+  canBetGame(game: SoccerGame): boolean {
+    return this.isScheduledGame(game) && new Date(game.date).getTime() > Date.now();
   }
 
   selectTeam(team: SoccerTeam | null): void {
@@ -124,7 +134,7 @@ export class Football implements OnInit {
   private reloadLeague(): void {
     this.resetLeagueState();
 
-    this.soccerService.getScoreboard(this.selectedLeague).subscribe({
+    this.soccerService.getScoreboard(this.selectedLeague, 14, 7).subscribe({
       next: (games) => {
         this.games = games;
         this.loadingScores = false;

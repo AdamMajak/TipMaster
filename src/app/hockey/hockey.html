@@ -78,18 +78,20 @@
                         [queryParams]="{ league: selectedLeague }">
                         Open detail
                       </a>
-                      <div class="prices">
-                        @for (odd of game.odds; track odd.name) {
-                          <button
-                            type="button"
-                            class="odd-btn"
-                            [class.active]="isSelected(game, odd)"
-                            (click)="toggleSelection(game, odd)">
-                            <span>{{ odd.name }}</span>
-                            <b>{{ odd.price }}</b>
-                          </button>
-                        }
-                      </div>
+                      @if (canBetGame(game)) {
+                        <div class="prices">
+                          @for (odd of game.odds; track odd.name) {
+                            <button
+                              type="button"
+                              class="odd-btn"
+                              [class.active]="isSelected(game, odd)"
+                              (click)="toggleSelection(game, odd)">
+                              <span>{{ odd.name }}</span>
+                              <b>{{ odd.price }}</b>
+                            </button>
+                          }
+                        </div>
+                      }
                     </div>
                   </article>
                 }
@@ -135,18 +137,7 @@
                         [queryParams]="{ league: selectedLeague }">
                         Open detail
                       </a>
-                      <div class="prices">
-                        @for (odd of game.odds; track odd.name) {
-                          <button
-                            type="button"
-                            class="odd-btn"
-                            [class.active]="isSelected(game, odd)"
-                            (click)="toggleSelection(game, odd)">
-                            <span>{{ odd.name }}</span>
-                            <b>{{ odd.price }}</b>
-                          </button>
-                        }
-                      </div>
+                      <p class="meta">Betting closed for live matches.</p>
                     </div>
                   </article>
                 }
@@ -192,18 +183,7 @@
                         [queryParams]="{ league: selectedLeague }">
                         Open detail
                       </a>
-                      <div class="prices">
-                        @for (odd of game.odds; track odd.name) {
-                          <button
-                            type="button"
-                            class="odd-btn"
-                            [class.active]="isSelected(game, odd)"
-                            (click)="toggleSelection(game, odd)">
-                            <span>{{ odd.name }}</span>
-                            <b>{{ odd.price }}</b>
-                          </button>
-                        }
-                      </div>
+                      <p class="meta">Betting closed for finished matches.</p>
                     </div>
                   </article>
                 }

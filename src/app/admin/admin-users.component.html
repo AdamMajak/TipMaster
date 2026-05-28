@@ -1,0 +1,133 @@
+<section class="admin-page">
+  @if (!isAdmin()) {
+    <div class="panel">
+      <h2>Admin access required</h2>
+      <p>Only admins can manage users.</p>
+      <a routerLink="/" class="ghost-btn">Back home</a>
+    </div>
+  } @else {
+    <header class="admin-hero">
+      <div>
+        <span class="eyebrow">Admin center</span>
+        <h2>Users</h2>
+        <p>Manage accounts, roles, blocked users and betting bankrolls in one clean workspace.</p>
+      </div>
+      <span class="sync-pill">{{ adminListSyncSource() }}</span>
+    </header>
+
+    @if (adminListSyncError()) {
+      <p class="status-banner">{{ adminListSyncError() }}</p>
+    }
+
+    <section class="stats-row">
+      <article>
+        <span>Total users</span>
+        <strong>{{ managedUsers().length }}</strong>
+      </article>
+      <article>
+        <span>Active</span>
+        <strong>{{ activeUsers() }}</strong>
+      </article>
+      <article>
+        <span>Blocked</span>
+        <strong>{{ blockedUsers() }}</strong>
+      </article>
+      <article>
+        <span>Bankroll</span>
+        <strong>{{ totalBankroll().toFixed(2) }} EUR</strong>
+      </article>
+    </section>
+
+    <section class="panel tools-panel">
+      <form class="admin-invite" (ngSubmit)="inviteAdmin()">
+        <label>
+          Add admin by email
+          <input type="email" name="inviteAdminEmail" [(ngModel)]="inviteAdminEmail" placeholder="newadmin@email.com" />
+        </label>
+        <button type="submit" class="primary-btn">Add admin</button>
+      </form>
+
+      <label class="search-box">
+        Search users
+        <input type="search" name="userSearch" [(ngModel)]="userSearch" placeholder="Name, email or role" />
+      </label>
+
+      @if (adminInviteMessage) {
+        <p class="status-banner">{{ adminInviteMessage }}</p>
+      }
+    </section>
+
+    <section class="panel users-panel">
+      <header class="table-head">
+        <div>User</div>
+        <div>Status</div>
+        <div>Bankroll</div>
+        <div>Actions</div>
+      </header>
+
+      @for (user of filteredUsers(); track user.id) {
+        <article class="user-row">
+          <div class="user-main">
+            <strong>{{ user.name }}</strong>
+            <span>{{ user.email }}</span>
+            <small>Last login: {{ (user.lastLoginAt ?? user.createdAt) | date: 'd MMM yyyy, HH:mm' }}</small>
+          </div>
+
+          <div class="user-state">
+            <span class="role-pill" [class.muted]="user.role !== 'admin'">
+              {{ user.role === 'admin' ? 'Admin' : 'User' }}
+            </span>
+            <span class="status-pill" [class.blocked]="user.disabled" [class.active]="!user.disabled">
+              {{ user.disabled ? 'Blocked' : 'Active' }}
+            </span>
+            @if (user.shareProfile) {
+              <a [routerLink]="['/user', user.id]" class="profile-link">Profile</a>
+            }
+          </div>
+
+          <div class="bankroll-cell">
+            <strong>{{ (user.bettingBudget ?? 100).toFixed(2) }} EUR</strong>
+            <div class="funds-row">
+              <input
+                type="number"
+                min="1"
+                step="1"
+                [ngModel]="bankrollDraft(user)"
+                (ngModelChange)="setBankrollDraft(user.id, $event)"
+                [ngModelOptions]="{ standalone: true }" />
+              <button type="button" class="ghost-btn" [disabled]="!canManageUser(user)" (click)="addBankroll(user.id)">
+                Add
+              </button>
+            </div>
+          </div>
+
+          <div class="actions-cell">
+            <button type="button" class="ghost-btn" [disabled]="!canManageUser(user) || user.role === 'admin'" (click)="setUserRole(user.id, 'admin')">
+              Make admin
+            </button>
+            <button type="button" class="ghost-btn" [disabled]="!canManageUser(user) || user.role === 'user'" (click)="setUserRole(user.id, 'user')">
+              Remove admin
+            </button>
+            <button type="button" class="ghost-btn" [disabled]="!canManageUser(user)" (click)="toggleUserDisabled(user.id)">
+              {{ user.disabled ? 'Unblock' : 'Block' }}
+            </button>
+            <button type="button" class="ghost-btn danger" [disabled]="!canManageUser(user)" (click)="deleteUserAnalyses(user.id)">
+              Delete analyses
+            </button>
+            <button type="button" class="ghost-btn danger" [disabled]="!canManageUser(user)" (click)="removeUserFromApp(user.id)">
+              Remove
+            </button>
+          </div>
+
+          @if (isProtectedAdmin(user)) {
+            <small class="row-note">Protected admin from config.</small>
+          } @else if (user.id === currentUser()?.id) {
+            <small class="row-note">This is your account.</small>
+          }
+        </article>
+      } @empty {
+        <p class="empty-state">No users match the current search.</p>
+      }
+    </section>
+  }
+</section>
