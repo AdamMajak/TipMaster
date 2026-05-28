@@ -1,9 +1,11 @@
-import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
-import { catchError, map, Observable, of, timeout } from 'rxjs';
-import { groqApiKey, groqModel } from './groq.config.local';
+import { catchError, forkJoin, map, Observable, of, switchMap } from 'rxjs';
+import { EspnHockeyService, HockeyGame, HockeyTeam } from './espn-hockey.service';
+import { ESPN_SOCCER_LEAGUES } from './espn-soccer-leagues';
+import { EspnSoccerService, SoccerGame, SoccerTeam } from './espn-soccer.service';
 
 export interface AiMatchInput {
+  id?: string;
   sportKey: string;
   sportTitle: string;
   homeTeam: string;
@@ -19,68 +21,47 @@ export interface AiAnalysisDraft {
   confidence: number;
 }
 
+interface TeamStats {
+  formScore: number;
+  attack: number;
+  defense: number;
+  goalsAvg: number;
+  gamesUsed?: number;
+  source?: 'last5' | 'local';
+}
+
 @Injectable({ providedIn: 'root' })
 export class AiAnalysisService {
-  constructor(private readonly http: HttpClient) {}
+  constructor(
+    private readonly soccerService: EspnSoccerService,
+    private readonly hockeyService: EspnHockeyService
+  ) {}
 
   buildDraftWithGroq(match: AiMatchInput): Observable<AiAnalysisDraft> {
-    const fallback = this.buildDraft(match);
-    const apiKey = (groqApiKey ?? '').trim();
-
-    if (!apiKey) {
-      return of(fallback);
-    }
-
-    return this.http
-      .post<GroqChatResponse>(
-        'https://api.groq.com/openai/v1/chat/completions',
-        {
-          model: (groqModel ?? '').trim() || 'llama-3.1-8b-instant',
-          temperature: 0.35,
-          max_tokens: 650,
-          messages: [
-            {
-              role: 'system',
-              content:
-                'Si sportovy analytik pre slovensku betting appku. Odpovedaj po slovensky bez diakritiky. ' +
-                'Nevymyslaj zranenia ani zostavy. Vrat iba validny JSON bez markdownu.',
-            },
-            {
-              role: 'user',
-              content: this.buildGroqPrompt(match, fallback),
-            },
-          ],
-        },
-        {
-          headers: new HttpHeaders({
-            Authorization: `Bearer ${apiKey}`,
-            'Content-Type': 'application/json',
-          }),
-        }
-      )
-      .pipe(
-        timeout(12000),
-        map((response) => this.parseGroqDraft(response, fallback)),
-        catchError(() => of(fallback))
-      );
+    return this.loadRealTeamStats(match).pipe(
+      map((stats) => this.buildDraft(match, stats ?? undefined)),
+      catchError(() => of(this.buildDraft(match)))
+    );
   }
 
-  buildDraft(match: AiMatchInput): AiAnalysisDraft {
-    const homeRating = this.rating(`${match.homeTeam}|${match.competition}`);
-    const awayRating = this.rating(`${match.awayTeam}|${match.competition}`);
-    const diff = homeRating - awayRating;
-    const hasDraw = match.sportKey === 'soccer' || match.sportKey === 'hockey';
-    const pick = hasDraw && Math.abs(diff) < 5 ? 'X' : diff >= 0 ? '1' : '2';
-    const confidence = Math.max(2, Math.min(5, 3 + Math.floor(Math.abs(diff) / 18)));
+  buildDraft(match: AiMatchInput, realStats?: { home: TeamStats; away: TeamStats }): AiAnalysisDraft {
+    const homeStats = realStats?.home ?? this.generateTeamStats(`${match.homeTeam}|${match.competition}`);
+    const awayStats = realStats?.away ?? this.generateTeamStats(`${match.awayTeam}|${match.competition}`);
+    const homeScore = this.calculateTeamScore(homeStats, true);
+    const awayScore = this.calculateTeamScore(awayStats, false);
+    const diff = homeScore - awayScore;
+    const canDraw = match.sportKey === 'soccer';
+    const { tip, confidencePercent } = this.getTip(diff, canDraw);
+    const confidence = Math.max(1, Math.min(5, Math.round(confidencePercent / 20)));
     const favorite =
-      pick === '1' ? match.homeTeam : pick === '2' ? match.awayTeam : 'remiza';
+      tip === '1' ? match.homeTeam : tip === '2' ? match.awayTeam : 'vyrovnany zapas';
     const kickoff = this.formatKickoff(match.kickoff);
-    const risk = this.riskLabel(confidence);
+    const risk = this.riskLabel(confidencePercent);
     const sportContext = this.sportContext(match.sportKey);
     const matchupText =
-      pick === 'X'
-        ? `Matchup vyzera velmi tesne. Ani jedna strana nema v modeli jasnu vyhodu, preto dava zmysel opatrny pohlad na remizu alebo vyrovnany priebeh.`
-        : `${favorite} vychadza v modeli ako silnejsia strana, hlavne vdaka lepsiemu zakladnemu ratingu v ramci sutaze a stabilnejsiemu profilu pre tento typ zapasu.`;
+      tip === 'X'
+        ? 'Matchup vyzera velmi tesne. Ani jedna strana nema v modeli jasnu vyhodu, preto dava zmysel opatrny pohlad na remizu alebo vyrovnany priebeh.'
+        : `${favorite} vychadza v modeli ako silnejsia strana vdaka kombinacii formy, utocneho profilu, defenzivy a zapasoveho kontextu.`;
 
     return {
       title: `AI analyza: ${match.homeTeam} vs ${match.awayTeam}`,
@@ -89,19 +70,26 @@ export class AiAnalysisService {
         `Sutaz: ${match.competition}`,
         `Cas: ${kickoff}`,
         '',
+        `Model hodnotenie: domaci score ${homeScore.toFixed(2)}, hostia score ${awayScore.toFixed(2)}.`,
+        `Domaci profil: forma ${homeStats.formScore}/5, utok ${homeStats.attack}/5, obrana ${homeStats.defense}/5, golovy priemer ${homeStats.goalsAvg}/5${this.statsSourceLabel(homeStats)}.`,
+        `Hostia profil: forma ${awayStats.formScore}/5, utok ${awayStats.attack}/5, obrana ${awayStats.defense}/5, golovy priemer ${awayStats.goalsAvg}/5${this.statsSourceLabel(awayStats)}.`,
+        '',
         `AI pohlad: ${matchupText}`,
         sportContext,
         '',
-        `Tip: ${pick}`,
-        `Confidence: ${confidence}/5`,
+        `Tip: ${tip}`,
+        `Ocakavany priebeh: ${favorite}`,
+        `Confidence: ${confidencePercent}% (${confidence}/5)`,
         `Riziko: ${risk}`,
         '',
         `Odporucanie: Tento tip by som hral konzervativne. Ak je bankroll obmedzeny, nedaval by som viac ako 1-3 % rozpoctu. ` +
           `Pri nizsom confidence je lepsie tiket nepremotivovat a radsej ho brat ako single alebo malu cast kombinacie.`,
         '',
-        `Poznamka: Toto je AI draft na zaklade dostupnych dat v aplikacii. Pred podanim si este skontroluj zostavy, zranenia, formu a kurz, lebo tieto veci sa mozu zmenit tesne pred zapasom.`,
+        realStats
+          ? `Poznamka: Forma je pocitana z poslednych dostupnych odohranych zapasov v ESPN feede. Pred podanim si este skontroluj zostavy, zranenia a kurz, lebo tieto veci sa mozu zmenit tesne pred zapasom.`
+          : `Poznamka: Nepodarilo sa nacitat posledne zapasy, preto je toto lokalny fallback zalozeny na deterministickych statistikach. Pred podanim si este skontroluj zostavy, zranenia, realnu formu a kurz.`,
       ].join('\n'),
-      pick,
+      pick: tip,
       confidence,
     };
   }
@@ -119,11 +107,11 @@ export class AiAnalysisService {
     }
   }
 
-  private riskLabel(confidence: number): string {
-    if (confidence >= 5) {
+  private riskLabel(confidencePercent: number): string {
+    if (confidencePercent >= 80) {
       return 'nizsie az stredne';
     }
-    if (confidence >= 4) {
+    if (confidencePercent >= 65) {
       return 'stredne';
     }
     return 'vyssie';
@@ -145,74 +133,247 @@ export class AiAnalysisService {
     }).format(date);
   }
 
-  private rating(seed: string): number {
-    let hash = 2166136261;
-    for (let i = 0; i < seed.length; i += 1) {
-      hash ^= seed.charCodeAt(i);
-      hash = Math.imul(hash, 16777619);
+  private hashString(value: string): number {
+    let hash = 0;
+    for (let i = 0; i < value.length; i += 1) {
+      hash = (hash * 31 + value.charCodeAt(i)) % 100;
     }
-    return 50 + ((hash >>> 0) % 50);
+    return hash;
   }
 
-  private buildGroqPrompt(match: AiMatchInput, fallback: AiAnalysisDraft): string {
-    return [
-      'Vytvor betting analyzu pre vybrany zapas.',
-      `Sport: ${match.sportTitle} (${match.sportKey})`,
-      `Sutaz: ${match.competition}`,
-      `Domaci/prvy: ${match.homeTeam}`,
-      `Hostia/druhy: ${match.awayTeam}`,
-      `Cas: ${this.formatKickoff(match.kickoff)}`,
-      `Predbezny tip z lokalneho modelu: ${fallback.pick ?? '-'}`,
-      `Predbezna confidence: ${fallback.confidence}/5`,
-      '',
-      'Vrat JSON v tvare:',
-      '{"title":"...","summary":"...","pick":"1|X|2","confidence":3}',
-      '',
-      'Summary nech ma 5-8 kratkych odsekov: pohlad na zapas, preco tip, rizika, bankroll/stake odporucanie a upozornenie na kontrolu zostav/formy/kurzu.',
-      'Ak sport nema remizu, nepouzivaj X.',
-    ].join('\n');
-  }
+  private generateTeamStats(team: string): TeamStats {
+    const base = this.hashString(team);
 
-  private parseGroqDraft(response: GroqChatResponse, fallback: AiAnalysisDraft): AiAnalysisDraft {
-    const content = response?.choices?.[0]?.message?.content?.trim();
-    if (!content) {
-      return fallback;
-    }
-
-    try {
-      const jsonText = this.extractJson(content);
-      const parsed = JSON.parse(jsonText) as Partial<AiAnalysisDraft>;
-      const confidence = Math.max(1, Math.min(5, Math.round(Number(parsed.confidence ?? fallback.confidence))));
-      const pick = typeof parsed.pick === 'string' ? parsed.pick.trim().toUpperCase() : fallback.pick;
-
-      return {
-        title: parsed.title?.trim() || fallback.title,
-        summary: parsed.summary?.trim() || fallback.summary,
-        pick: pick || fallback.pick,
-        confidence,
-      };
-    } catch {
-      return {
-        ...fallback,
-        summary: content,
-      };
-    }
-  }
-
-  private extractJson(value: string): string {
-    const start = value.indexOf('{');
-    const end = value.lastIndexOf('}');
-    if (start >= 0 && end > start) {
-      return value.slice(start, end + 1);
-    }
-    return value;
-  }
-}
-
-interface GroqChatResponse {
-  choices?: Array<{
-    message?: {
-      content?: string;
+    return {
+      formScore: base % 6,
+      attack: base % 6,
+      defense: (base + 3) % 6,
+      goalsAvg: (base + 7) % 6,
+      source: 'local',
     };
-  }>;
+  }
+
+  private loadRealTeamStats(match: AiMatchInput): Observable<{ home: TeamStats; away: TeamStats } | null> {
+    if (match.sportKey === 'soccer') {
+      return this.loadSoccerStats(match);
+    }
+
+    if (match.sportKey === 'hockey') {
+      return this.loadHockeyStats(match);
+    }
+
+    return of(null);
+  }
+
+  private loadSoccerStats(match: AiMatchInput): Observable<{ home: TeamStats; away: TeamStats } | null> {
+    const league = this.resolveSoccerLeague(match);
+
+    return this.soccerService.getTeams(league).pipe(
+      switchMap((teams) => {
+        const homeTeam = this.findTeamByName(teams, match.homeTeam);
+        const awayTeam = this.findTeamByName(teams, match.awayTeam);
+
+        if (!homeTeam?.id || !awayTeam?.id) {
+          return of(null);
+        }
+
+        return forkJoin({
+          homeGames: this.soccerService.getTeamSchedule(league, homeTeam.id),
+          awayGames: this.soccerService.getTeamSchedule(league, awayTeam.id),
+        }).pipe(
+          map(({ homeGames, awayGames }) => ({
+            home: this.statsFromGames(homeGames, match.homeTeam, true),
+            away: this.statsFromGames(awayGames, match.awayTeam, true),
+          }))
+        );
+      }),
+      catchError(() => of(null))
+    );
+  }
+
+  private loadHockeyStats(match: AiMatchInput): Observable<{ home: TeamStats; away: TeamStats } | null> {
+    const league = 'nhl';
+
+    return this.hockeyService.getTeams(league).pipe(
+      switchMap((teams) => {
+        const homeTeam = this.findTeamByName(teams, match.homeTeam);
+        const awayTeam = this.findTeamByName(teams, match.awayTeam);
+
+        if (!homeTeam?.id || !awayTeam?.id) {
+          return of(null);
+        }
+
+        return forkJoin({
+          homeGames: this.hockeyService.getTeamSchedule(league, homeTeam.id),
+          awayGames: this.hockeyService.getTeamSchedule(league, awayTeam.id),
+        }).pipe(
+          map(({ homeGames, awayGames }) => ({
+            home: this.statsFromGames(homeGames, match.homeTeam, true),
+            away: this.statsFromGames(awayGames, match.awayTeam, true),
+          }))
+        );
+      }),
+      catchError(() => of(null))
+    );
+  }
+
+  private statsFromGames(games: Array<SoccerGame | HockeyGame>, teamName: string, allowDraw: boolean): TeamStats {
+    const team = this.normalizeName(teamName);
+    const played = games
+      .filter((game) => this.isPlayedGame(game))
+      .filter((game) => {
+        const home = this.normalizeName(game.homeTeam);
+        const away = this.normalizeName(game.awayTeam);
+        return home === team || away === team || home.includes(team) || away.includes(team) || team.includes(home) || team.includes(away);
+      })
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+
+    if (!played.length) {
+      return this.generateTeamStats(teamName);
+    }
+
+    let points = 0;
+    let goalsFor = 0;
+    let goalsAgainst = 0;
+
+    for (const game of played) {
+      const isHome = this.isSameTeam(game.homeTeam, teamName);
+      const ownScore = isHome ? game.homeScore : game.awayScore;
+      const opponentScore = isHome ? game.awayScore : game.homeScore;
+
+      if (ownScore === undefined || opponentScore === undefined) {
+        continue;
+      }
+
+      goalsFor += ownScore;
+      goalsAgainst += opponentScore;
+
+      if (ownScore > opponentScore) {
+        points += 3;
+      } else if (allowDraw && ownScore === opponentScore) {
+        points += 1;
+      }
+    }
+
+    const gamesUsed = played.length;
+    const formScore = this.clamp(Math.round((points / (gamesUsed * 3)) * 5), 0, 5);
+    const goalsForAvg = goalsFor / gamesUsed;
+    const goalsAgainstAvg = goalsAgainst / gamesUsed;
+
+    return {
+      formScore,
+      attack: this.clamp(Math.round(goalsForAvg), 0, 5),
+      defense: this.clamp(Math.round(5 - goalsAgainstAvg), 0, 5),
+      goalsAvg: this.clamp(Math.round(goalsForAvg + goalsAgainstAvg / 2), 0, 5),
+      gamesUsed,
+      source: 'last5',
+    };
+  }
+
+  private calculateTeamScore(stats: TeamStats, isHome: boolean): number {
+    const homeBonus = isHome ? 1.2 : 1;
+
+    return (
+      stats.formScore * 0.35 +
+      stats.attack * 0.25 +
+      stats.defense * 0.2 +
+      stats.goalsAvg * 0.2
+    ) * homeBonus;
+  }
+
+  private getTip(diff: number, canDraw: boolean): { tip: string; confidencePercent: number } {
+    const abs = Math.abs(diff);
+
+    if (canDraw && abs < 0.5) {
+      return { tip: 'X', confidencePercent: 55 };
+    }
+
+    if (diff > 0) {
+      if (abs > 2) {
+        return { tip: '1', confidencePercent: 85 };
+      }
+      if (abs > 1) {
+        return { tip: '1', confidencePercent: 70 };
+      }
+      return { tip: '1', confidencePercent: 60 };
+    }
+
+    if (abs > 2) {
+      return { tip: '2', confidencePercent: 85 };
+    }
+    if (abs > 1) {
+      return { tip: '2', confidencePercent: 70 };
+    }
+    return { tip: '2', confidencePercent: 60 };
+  }
+
+  private resolveSoccerLeague(match: AiMatchInput): string {
+    const fromId = match.id?.match(/^soccer-espn-([a-z0-9._-]+)-/i)?.[1];
+    if (fromId) {
+      return fromId;
+    }
+
+    const competition = this.normalizeName(match.competition);
+    const matched = ESPN_SOCCER_LEAGUES.find((league) => {
+      const label = this.normalizeName(league.label);
+      return label === competition || label.includes(competition) || competition.includes(label);
+    });
+
+    return matched?.id ?? 'eng.1';
+  }
+
+  private findTeamByName<T extends SoccerTeam | HockeyTeam>(teams: T[], name: string): T | null {
+    const needle = this.normalizeName(name);
+    if (!needle) {
+      return null;
+    }
+
+    return (
+      teams.find((team) => this.normalizeName(team.name) === needle) ??
+      teams.find((team) => {
+        const normalized = this.normalizeName(team.name);
+        return normalized.includes(needle) || needle.includes(normalized);
+      }) ??
+      null
+    );
+  }
+
+  private isPlayedGame(game: SoccerGame | HockeyGame): boolean {
+    if (game.homeScore !== undefined && game.awayScore !== undefined) {
+      return true;
+    }
+
+    const normalized = `${game.status} ${game.detail}`.toLowerCase();
+    return normalized.includes('final') || normalized.includes('post') || normalized.includes('ft');
+  }
+
+  private isSameTeam(left: string, right: string): boolean {
+    const a = this.normalizeName(left);
+    const b = this.normalizeName(right);
+    return a === b || a.includes(b) || b.includes(a);
+  }
+
+  private statsSourceLabel(stats: TeamStats): string {
+    if (stats.source === 'last5') {
+      return `, poslednych ${stats.gamesUsed ?? 0} zapasov`;
+    }
+
+    return ', fallback model';
+  }
+
+  private normalizeName(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase()
+      .replace(/\b(fc|cf|sc|ac|afc|cfc|bk|fk|sv|ss|as)\b/g, ' ')
+      .replace(/[^a-z0-9/ ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  private clamp(value: number, min: number, max: number): number {
+    return Math.min(max, Math.max(min, value));
+  }
 }
