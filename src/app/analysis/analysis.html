@@ -168,9 +168,9 @@
             <button
               type="button"
               class="ghost-btn"
-              [disabled]="selectedCount !== 1"
+              [disabled]="selectedCount !== 1 || aiDraftLoading"
               (click)="generateAiDraft()">
-              AI napis analyzu
+              {{ aiDraftLoading ? 'AI pise...' : 'AI napis analyzu' }}
             </button>
           </div>
         </div>

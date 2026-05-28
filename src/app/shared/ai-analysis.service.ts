@@ -1,4 +1,7 @@
+import { HttpClient, HttpHeaders } from '@angular/common/http';
 import { Injectable } from '@angular/core';
+import { catchError, map, Observable, of, timeout } from 'rxjs';
+import { groqApiKey, groqModel } from './groq.config.local';
 
 export interface AiMatchInput {
   sportKey: string;
@@ -18,6 +21,50 @@ export interface AiAnalysisDraft {
 
 @Injectable({ providedIn: 'root' })
 export class AiAnalysisService {
+  constructor(private readonly http: HttpClient) {}
+
+  buildDraftWithGroq(match: AiMatchInput): Observable<AiAnalysisDraft> {
+    const fallback = this.buildDraft(match);
+    const apiKey = (groqApiKey ?? '').trim();
+
+    if (!apiKey) {
+      return of(fallback);
+    }
+
+    return this.http
+      .post<GroqChatResponse>(
+        'https://api.groq.com/openai/v1/chat/completions',
+        {
+          model: (groqModel ?? '').trim() || 'llama-3.1-8b-instant',
+          temperature: 0.35,
+          max_tokens: 650,
+          messages: [
+            {
+              role: 'system',
+              content:
+                'Si sportovy analytik pre slovensku betting appku. Odpovedaj po slovensky bez diakritiky. ' +
+                'Nevymyslaj zranenia ani zostavy. Vrat iba validny JSON bez markdownu.',
+            },
+            {
+              role: 'user',
+              content: this.buildGroqPrompt(match, fallback),
+            },
+          ],
+        },
+        {
+          headers: new HttpHeaders({
+            Authorization: `Bearer ${apiKey}`,
+            'Content-Type': 'application/json',
+          }),
+        }
+      )
+      .pipe(
+        timeout(12000),
+        map((response) => this.parseGroqDraft(response, fallback)),
+        catchError(() => of(fallback))
+      );
+  }
+
   buildDraft(match: AiMatchInput): AiAnalysisDraft {
     const homeRating = this.rating(`${match.homeTeam}|${match.competition}`);
     const awayRating = this.rating(`${match.awayTeam}|${match.competition}`);
@@ -106,4 +153,66 @@ export class AiAnalysisService {
     }
     return 50 + ((hash >>> 0) % 50);
   }
+
+  private buildGroqPrompt(match: AiMatchInput, fallback: AiAnalysisDraft): string {
+    return [
+      'Vytvor betting analyzu pre vybrany zapas.',
+      `Sport: ${match.sportTitle} (${match.sportKey})`,
+      `Sutaz: ${match.competition}`,
+      `Domaci/prvy: ${match.homeTeam}`,
+      `Hostia/druhy: ${match.awayTeam}`,
+      `Cas: ${this.formatKickoff(match.kickoff)}`,
+      `Predbezny tip z lokalneho modelu: ${fallback.pick ?? '-'}`,
+      `Predbezna confidence: ${fallback.confidence}/5`,
+      '',
+      'Vrat JSON v tvare:',
+      '{"title":"...","summary":"...","pick":"1|X|2","confidence":3}',
+      '',
+      'Summary nech ma 5-8 kratkych odsekov: pohlad na zapas, preco tip, rizika, bankroll/stake odporucanie a upozornenie na kontrolu zostav/formy/kurzu.',
+      'Ak sport nema remizu, nepouzivaj X.',
+    ].join('\n');
+  }
+
+  private parseGroqDraft(response: GroqChatResponse, fallback: AiAnalysisDraft): AiAnalysisDraft {
+    const content = response?.choices?.[0]?.message?.content?.trim();
+    if (!content) {
+      return fallback;
+    }
+
+    try {
+      const jsonText = this.extractJson(content);
+      const parsed = JSON.parse(jsonText) as Partial<AiAnalysisDraft>;
+      const confidence = Math.max(1, Math.min(5, Math.round(Number(parsed.confidence ?? fallback.confidence))));
+      const pick = typeof parsed.pick === 'string' ? parsed.pick.trim().toUpperCase() : fallback.pick;
+
+      return {
+        title: parsed.title?.trim() || fallback.title,
+        summary: parsed.summary?.trim() || fallback.summary,
+        pick: pick || fallback.pick,
+        confidence,
+      };
+    } catch {
+      return {
+        ...fallback,
+        summary: content,
+      };
+    }
+  }
+
+  private extractJson(value: string): string {
+    const start = value.indexOf('{');
+    const end = value.lastIndexOf('}');
+    if (start >= 0 && end > start) {
+      return value.slice(start, end + 1);
+    }
+    return value;
+  }
+}
+
+interface GroqChatResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
 }

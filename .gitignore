@@ -49,3 +49,6 @@ src/app/shared/firebase.config.local.ts
 
 # Local RapidAPI config (do not commit keys)
 src/app/shared/rapidapi.config.local.ts
+
+# Local Groq config (do not commit keys)
+src/app/shared/groq.config.local.ts

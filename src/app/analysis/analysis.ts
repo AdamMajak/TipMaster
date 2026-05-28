@@ -57,6 +57,7 @@ export class Analyses implements OnInit {
   pick = '';
   confidence = 3;
   formMessage = '';
+  aiDraftLoading = false;
 
   readonly todayDate = this.getDateKey(new Date());
   analysisDate = this.todayDate;
@@ -238,12 +239,25 @@ export class Analyses implements OnInit {
       return;
     }
 
-    const draft = this.aiAnalysisService.buildDraft(this.selectedMatches[0]);
-    this.title = draft.title;
-    this.summary = draft.summary;
-    this.pick = draft.pick ?? '';
-    this.confidence = draft.confidence;
+    this.aiDraftLoading = true;
     this.formMessage = '';
+    this.aiAnalysisService.buildDraftWithGroq(this.selectedMatches[0]).subscribe({
+      next: (draft) => {
+        this.title = draft.title;
+        this.summary = draft.summary;
+        this.pick = draft.pick ?? '';
+        this.confidence = draft.confidence;
+        this.aiDraftLoading = false;
+      },
+      error: () => {
+        const draft = this.aiAnalysisService.buildDraft(this.selectedMatches[0]);
+        this.title = draft.title;
+        this.summary = draft.summary;
+        this.pick = draft.pick ?? '';
+        this.confidence = draft.confidence;
+        this.aiDraftLoading = false;
+      },
+    });
   }
 
   formatMatch(match: AnalysisMatch): string {
