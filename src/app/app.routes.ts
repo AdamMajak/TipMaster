@@ -8,7 +8,6 @@ import { UserProfileComponent } from './user/user-profile';
 export const routes: Routes = [
   { path: '', loadComponent: () => import('./home/home').then(m => m.Home) },
   { path: 'analysis', loadComponent: () => import('./analysis/analysis').then(m => m.Analyses) },
-  { path: 'tennis', loadComponent: () => import('./tennis/tennis').then(m => m.Tennis) },
   { path: 'football/match/:eventId', component: FootballMatch },
   { path: 'football', component: Football },
   { path: 'hockey/match/:eventId', component: HockeyMatch },

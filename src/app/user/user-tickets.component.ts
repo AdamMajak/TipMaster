@@ -165,7 +165,7 @@ export class UserTicketsComponent implements OnChanges, OnDestroy {
       case 'void':
         return 'Storno';
       default:
-        return 'Caka';
+        return 'Wait';
     }
   }
 

@@ -78,7 +78,6 @@ export class OddsService {
 
   getSports(): Observable<OddsSport[]> {
     return of([
-      this.toSport('tennis', 'Tennis'),
       this.toSport('soccer', 'Football'),
       this.toSport('hockey', 'Hockey'),
       this.toSport('basketball', 'Basketball'),

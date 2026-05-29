@@ -27,14 +27,11 @@
 
     <div class="hero-tools">
       <div class="hero-tool-card">
-        <label class="inline-label">
-          Analysis date
+        <div class="date-control">
+          <span>Analysis date</span>
+          <strong>{{ analysisDate | date: 'd MMM yyyy' }}</strong>
           <input type="date" name="analysisDateTop" [(ngModel)]="analysisDate" (ngModelChange)="onAnalysisDateChange()" />
-        </label>
-        <label class="inline-label">
-          Search analyses
-          <input type="text" name="analysisSearch" [(ngModel)]="analysisSearch" placeholder="Author, title, match..." />
-        </label>
+        </div>
         <button type="button" class="action ghost" (click)="reloadMatches()" [disabled]="loadingMatches">
           {{ loadingMatches ? 'Refreshing...' : 'Refresh matches' }}
         </button>
@@ -78,7 +75,6 @@
               <option value="all">All</option>
               <option value="soccer">Football</option>
               <option value="hockey">Hockey</option>
-              <option value="tennis">Tennis</option>
             </select>
           </label>
 

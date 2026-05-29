@@ -100,8 +100,6 @@ export class AiAnalysisService {
         return 'Pri futbale je dolezite ratat s nizsim poctom golov a vyssou sancou remizy, preto ma value hlavne tip s rozumnym kurzom a nie slepe tlacenie favorita.';
       case 'hockey':
         return 'Pri hokeji je vacsia volatilita, lebo zapas mozu zlomit presilovky, brankar a predlzenie. Preto je pri vyrovnanych timoch dolezite drzat stake nizsie.';
-      case 'tennis':
-        return 'Pri tenise zavazi aktualna forma, povrch, servis a fyzicky stav hraca. Ak ide o favorita, stale treba ratat s rizikom jedneho zleho setu.';
       default:
         return 'Model porovnava zakladnu silu oboch stran a dava konzervativny tip podla rozdielu v ratingu.';
     }

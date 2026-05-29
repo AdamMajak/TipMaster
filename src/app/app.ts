@@ -24,7 +24,16 @@ export class App {
 
   protected readonly title = signal('TipMaster');
   protected stake = 10;
-  protected budgetDraft = 100;
+  protected depositDraft = 10;
+  protected showDepositModal = false;
+  protected cardHolder = '';
+  protected cardNumber = '';
+  protected cardExpiry = '';
+  protected cardCvv = '';
+  protected savePaymentCard = true;
+  protected useSavedPaymentCard = false;
+  protected savedPaymentCardLabel = '';
+  protected depositMessage = '';
   protected evaluatingTickets = false;
   protected authMode: 'login' | 'register' = 'login';
   protected loginEmail = '';
@@ -84,7 +93,9 @@ export class App {
     });
 
     effect(() => {
-      this.budgetDraft = this.betSlipService.budget();
+      const userId = this.currentUser()?.id;
+      this.savedPaymentCardLabel = userId ? this.loadSavedPaymentCardLabel(userId) : '';
+      this.useSavedPaymentCard = Boolean(this.savedPaymentCardLabel);
     });
   }
 
@@ -224,8 +235,39 @@ export class App {
     this.bankrollDrafts[userId] = 10;
   }
 
-  protected updateBudget(): void {
-    this.betSlipService.updateBudget(this.budgetDraft);
+  protected openDepositModal(): void {
+    this.depositMessage = '';
+    this.showDepositModal = true;
+    this.useSavedPaymentCard = Boolean(this.savedPaymentCardLabel);
+  }
+
+  protected closeDepositModal(): void {
+    this.showDepositModal = false;
+    this.depositMessage = '';
+  }
+
+  protected confirmDeposit(): void {
+    const amount = Math.round(Number(this.depositDraft) * 100) / 100;
+    if (!Number.isFinite(amount) || amount <= 0 || this.isAdmin()) {
+      this.depositMessage = 'Enter a valid deposit amount.';
+      return;
+    }
+
+    if (!this.useSavedPaymentCard && !this.isPaymentCardValid()) {
+      this.depositMessage = 'Fill in valid card details.';
+      return;
+    }
+
+    this.betSlipService.addToBudget(amount);
+
+    if (!this.useSavedPaymentCard && this.savePaymentCard) {
+      this.persistPaymentCardLabel();
+    }
+
+    this.depositDraft = 10;
+    this.cardCvv = '';
+    this.showDepositModal = false;
+    this.depositMessage = '';
   }
 
   protected async evaluateTickets(): Promise<void> {
@@ -250,7 +292,7 @@ export class App {
       case 'void':
         return 'Storno';
       default:
-        return 'Caka';
+        return 'Wait';
     }
   }
 
@@ -284,5 +326,51 @@ export class App {
       .toLowerCase()
       .normalize('NFD')
       .replace(/[\u0300-\u036f]/g, '');
+  }
+
+  private isPaymentCardValid(): boolean {
+    const digits = this.cardNumber.replace(/\D/g, '');
+    const expiry = this.cardExpiry.trim();
+    const cvv = this.cardCvv.replace(/\D/g, '');
+    return this.cardHolder.trim().length >= 2
+      && digits.length >= 12
+      && digits.length <= 19
+      && /^(0[1-9]|1[0-2])\/\d{2}$/.test(expiry)
+      && cvv.length >= 3
+      && cvv.length <= 4;
+  }
+
+  private persistPaymentCardLabel(): void {
+    const userId = this.currentUser()?.id;
+    const digits = this.cardNumber.replace(/\D/g, '');
+    if (!userId || digits.length < 4 || typeof localStorage === 'undefined') {
+      return;
+    }
+
+    const label = `${this.cardHolder.trim()} - **** ${digits.slice(-4)}`;
+    localStorage.setItem(this.paymentCardKey(userId), JSON.stringify({
+      label,
+      expiry: this.cardExpiry.trim(),
+    }));
+    this.savedPaymentCardLabel = label;
+    this.useSavedPaymentCard = true;
+  }
+
+  private loadSavedPaymentCardLabel(userId: string): string {
+    if (typeof localStorage === 'undefined') {
+      return '';
+    }
+
+    try {
+      const raw = localStorage.getItem(this.paymentCardKey(userId));
+      const parsed = raw ? JSON.parse(raw) as { label?: string } : null;
+      return parsed?.label ?? '';
+    } catch {
+      return '';
+    }
+  }
+
+  private paymentCardKey(userId: string): string {
+    return `tipmaster-payment-card:${userId}`;
   }
 }

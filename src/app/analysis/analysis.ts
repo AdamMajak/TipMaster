@@ -9,7 +9,6 @@ import { AuthService } from '../shared/auth.service';
 import { EspnHockeyService, HockeyGame } from '../shared/espn-hockey.service';
 import { ESPN_SOCCER_LEAGUES } from '../shared/espn-soccer-leagues';
 import { EspnSoccerService, SoccerGame } from '../shared/espn-soccer.service';
-import { EspnTennisService, TennisGame } from '../shared/espn-tennis.service';
 import { OddsEvent, OddsService } from '../shared/odds.service';
 import { SPORT_KEYS } from '../shared/rapidapi-odds';
 
@@ -24,7 +23,7 @@ interface AnalysisMatch {
   synthetic?: boolean;
 }
 
-type SportFilter = 'all' | 'soccer' | 'hockey' | 'tennis';
+type SportFilter = 'all' | 'soccer' | 'hockey';
 type PickOption = { value: string; label: string };
 
 @Component({
@@ -39,7 +38,6 @@ export class Analyses implements OnInit {
   private readonly aiAnalysisService = inject(AiAnalysisService);
   private readonly soccerService = inject(EspnSoccerService);
   private readonly hockeyService = inject(EspnHockeyService);
-  private readonly tennisService = inject(EspnTennisService);
 
   loadingMatches = true;
   errorMatches = '';
@@ -49,7 +47,6 @@ export class Analyses implements OnInit {
   selectedMatchIds: string[] = [];
   sportFilter: SportFilter = 'all';
   matchSearch = '';
-  analysisSearch = '';
 
   matchLabel = '';
   title = '';
@@ -88,7 +85,6 @@ export class Analyses implements OnInit {
           { value: '2', label: '2 (Away)' },
         ];
       case 'hockey':
-      case 'tennis':
         return [
           { value: '1', label: '1' },
           { value: '2', label: '2' },
@@ -133,10 +129,9 @@ export class Analyses implements OnInit {
     forkJoin({
       soccer: this.oddsService.getOddsBySport(SPORT_KEYS.soccer).pipe(catchError(() => of([]))),
       hockey: this.oddsService.getOddsBySport(SPORT_KEYS.hockey).pipe(catchError(() => of([]))),
-      tennis: this.oddsService.getOddsBySport(SPORT_KEYS.tennis).pipe(catchError(() => of([]))),
     }).subscribe({
-      next: ({ soccer, hockey, tennis }) => {
-        const all = [...soccer, ...hockey, ...tennis].map((event) => this.toMatch(event));
+      next: ({ soccer, hockey }) => {
+        const all = [...soccer, ...hockey].map((event) => this.toMatch(event));
         const unique = this.deduplicateMatches(all);
         const liveOdds = unique.filter((match) => !match.synthetic);
         const demoOdds = unique.filter((match) => Boolean(match.synthetic));
@@ -392,15 +387,7 @@ export class Analyses implements OnInit {
   }
 
   private filterAnalysesBySearch(items: UserAnalysis[]): UserAnalysis[] {
-    const term = this.normalizeSearch(this.analysisSearch);
-    if (!term) {
-      return items;
-    }
-
-    return items.filter((item) => {
-      const haystack = this.normalizeSearch(`${item.authorName} ${item.title} ${item.summary} ${item.matchLabel}`);
-      return haystack.includes(term);
-    });
+    return items;
   }
 
   averageStars(analysis: UserAnalysis): string {
@@ -514,15 +501,7 @@ export class Analyses implements OnInit {
         catchError(() => of([] as HockeyGame[])),
         map((games) => games.filter((game) => this.isScheduledHockeyGame(game)).map((game) => this.toEspnHockeyMatch(game)))
       ),
-      tennis: forkJoin([
-        this.tennisService.getScoreboard('atp').pipe(catchError(() => of([] as TennisGame[]))),
-        this.tennisService.getScoreboard('wta').pipe(catchError(() => of([] as TennisGame[]))),
-      ]).pipe(
-        map(([atp, wta]) =>
-          [...atp, ...wta].filter((game) => this.isScheduledTennisGame(game)).map((game) => this.toEspnTennisMatch(game))
-        )
-      ),
-    }).pipe(map(({ soccer, hockey, tennis }) => [...soccer, ...hockey, ...tennis]));
+    }).pipe(map(({ soccer, hockey }) => [...soccer, ...hockey]));
   }
 
   private toEspnSoccerMatch(leagueId: string, leagueLabel: string, game: SoccerGame): AnalysisMatch {
@@ -549,28 +528,12 @@ export class Analyses implements OnInit {
     };
   }
 
-  private toEspnTennisMatch(game: TennisGame): AnalysisMatch {
-    return {
-      id: `tennis-espn-${game.id}`,
-      sportKey: 'tennis',
-      sportTitle: 'Tennis',
-      kickoff: game.date,
-      homeTeam: game.playerA,
-      awayTeam: game.playerB,
-      competition: game.tournament ?? game.round ?? 'Tennis',
-    };
-  }
-
   private isScheduledEspnGame(game: SoccerGame): boolean {
     return Boolean(game?.id && game?.homeTeam && game?.awayTeam && game?.date);
   }
 
   private isScheduledHockeyGame(game: HockeyGame): boolean {
     return Boolean(game?.id && game?.homeTeam && game?.awayTeam && game?.date);
-  }
-
-  private isScheduledTennisGame(game: TennisGame): boolean {
-    return Boolean(game?.id && game?.playerA && game?.playerB && game?.date);
   }
 
   private deduplicateMatches(matches: AnalysisMatch[]): AnalysisMatch[] {

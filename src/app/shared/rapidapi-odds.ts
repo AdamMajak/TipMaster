@@ -8,7 +8,6 @@ export const SPORT_KEYS = {
   soccer: 'soccer',
   football: 'soccer',
   hockey: 'hockey',
-  tennis: 'tennis',
   basketball: 'basketball',
   baseball: 'baseball',
   mma: 'mma',

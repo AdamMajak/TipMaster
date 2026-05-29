@@ -226,13 +226,14 @@ export class BetSlipService {
     return ticket;
   }
 
-  updateBudget(value: number): void {
+  addToBudget(amount: number): void {
     const userId = this.authService.currentUser()?.id;
-    const safeValue = Math.max(0, Math.round(Number(value) * 100) / 100);
-    if (!Number.isFinite(safeValue)) {
+    const safeAmount = Math.round(Number(amount) * 100) / 100;
+    if (!userId || !Number.isFinite(safeAmount) || safeAmount <= 0) {
       return;
     }
-    this.setBudget(safeValue, userId);
+
+    this.setBudget(this.budgetSignal() + safeAmount, userId);
   }
 
   settleTicket(ticket: BetTicket): void {

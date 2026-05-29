@@ -90,8 +90,8 @@
 
 .hero-tool-card {
   display: grid;
-  gap: 12px;
-  padding: 16px;
+  gap: 14px;
+  padding: 18px;
 }
 
 .hero-note {
@@ -117,6 +117,47 @@
   gap: 6px;
   font-size: 0.85rem;
   color: rgba(215, 229, 255, 0.92);
+}
+
+.date-control {
+  position: relative;
+  display: grid;
+  gap: 6px;
+  padding: 14px;
+  border-radius: 16px;
+  border: 1px solid rgba(110, 170, 255, 0.2);
+  background:
+    linear-gradient(135deg, rgba(255, 154, 42, 0.11), transparent 42%),
+    rgba(8, 14, 28, 0.58);
+}
+
+.date-control span {
+  color: rgba(215, 229, 255, 0.72);
+  font-size: 0.78rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.date-control strong {
+  color: #fff3dc;
+  font-size: 1.1rem;
+}
+
+.date-control input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 12px;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 154, 42, 0.28);
+  background: rgba(6, 12, 24, 0.88);
+  color: rgba(246, 249, 255, 0.96);
+  color-scheme: dark;
+}
+
+.date-control input:focus {
+  outline: none;
+  border-color: rgba(255, 185, 96, 0.72);
+  box-shadow: 0 0 0 3px rgba(255, 154, 42, 0.14);
 }
 
 .panel {

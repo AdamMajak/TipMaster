@@ -426,7 +426,7 @@
   padding: 10px;
   margin-bottom: 10px;
   display: grid;
-  grid-template-columns: 1fr 110px;
+  grid-template-columns: 1fr;
   gap: 10px;
   align-items: end;
 }
@@ -451,6 +451,130 @@
   color: #e8f0ff;
   border-radius: 8px;
   padding: 7px;
+}
+
+.deposit-open-btn {
+  border: 1px solid rgba(245, 178, 92, 0.68);
+  background: linear-gradient(120deg, rgba(240, 154, 43, 0.95), rgba(246, 194, 107, 0.95));
+  color: #172033;
+  border-radius: 10px;
+  padding: 9px 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
+.saved-card-pill {
+  display: inline-flex;
+  width: fit-content;
+  border: 1px solid rgba(111, 168, 255, 0.24);
+  background: rgba(105, 163, 255, 0.1);
+  border-radius: 999px;
+  padding: 5px 9px;
+  color: #dce9ff;
+}
+
+.payment-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: grid;
+  place-items: center;
+  padding: 18px;
+  background: rgba(3, 8, 17, 0.72);
+  backdrop-filter: blur(8px);
+}
+
+.payment-modal {
+  width: min(430px, 100%);
+  border: 1px solid rgba(111, 168, 255, 0.24);
+  border-radius: 18px;
+  background:
+    linear-gradient(135deg, rgba(240, 154, 43, 0.16), transparent 36%),
+    #101b30;
+  box-shadow: 0 24px 80px rgba(0, 0, 0, 0.44);
+  padding: 16px;
+}
+
+.payment-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: flex-start;
+  margin-bottom: 14px;
+}
+
+.payment-head span {
+  color: #ffcf96;
+  font-size: 0.74rem;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.payment-head h4 {
+  margin: 4px 0 0;
+  color: #fff;
+  font-size: 1.15rem;
+}
+
+.icon-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 999px;
+  border: 1px solid #3f5f8b;
+  background: rgba(22, 36, 60, 0.9);
+  color: #dce9ff;
+  cursor: pointer;
+}
+
+.payment-form {
+  display: grid;
+  gap: 10px;
+}
+
+.payment-form label {
+  display: grid;
+  gap: 5px;
+  color: #b9cbea;
+  font-size: 0.8rem;
+}
+
+.payment-form input {
+  width: 100%;
+  box-sizing: border-box;
+  border: 1px solid #3f5f8b;
+  background: #0d182b;
+  color: #f4f8ff;
+  border-radius: 10px;
+  padding: 10px;
+}
+
+.payment-form input:focus {
+  outline: none;
+  border-color: #f5b25c;
+  box-shadow: 0 0 0 3px rgba(245, 178, 92, 0.13);
+}
+
+.payment-grid {
+  display: grid;
+  grid-template-columns: 1fr 0.7fr;
+  gap: 10px;
+}
+
+.checkbox-row {
+  display: flex !important;
+  grid-template-columns: none;
+  align-items: center;
+  gap: 8px;
+}
+
+.checkbox-row input {
+  width: auto;
+}
+
+.payment-message {
+  margin: 0;
+  color: #ffcf96;
+  font-size: 0.84rem;
 }
 
 .betslip-items {
@@ -708,7 +832,8 @@
 
   .admin-filter-row,
   .admin-money-row,
-  .history-metrics {
+  .history-metrics,
+  .payment-grid {
     grid-template-columns: 1fr;
   }
 }

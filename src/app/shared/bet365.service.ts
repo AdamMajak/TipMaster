@@ -55,7 +55,7 @@ export class Bet365Service {
       return [];
     }
 
-    // Shape: { soccer: ["Premier League", ...], tennis: ["ATP ...", ...], ... }
+    // Shape: { soccer: ["Premier League", ...], hockey: ["NHL", ...], ... }
     const looksLikeSportMap = entries.some(([, v]) => Array.isArray(v));
     if (!looksLikeSportMap) {
       return [];

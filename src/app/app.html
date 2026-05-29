@@ -13,7 +13,6 @@
       <a routerLink="/analysis" routerLinkActive="active">Analyses</a>
       <a routerLink="/football" routerLinkActive="active">Football</a>
       <a routerLink="/hockey" routerLinkActive="active">Hockey</a>
-      <a routerLink="/tennis" routerLinkActive="active">Tennis</a>
       @if (isAdmin()) {
         <a routerLink="/admin/users" routerLinkActive="active">Admin Users</a>
       }
@@ -134,10 +133,71 @@
               <span>Bankroll</span>
               <strong>{{ budget().toFixed(2) }} EUR</strong>
             </div>
-            <label>
-              Budget
-              <input type="number" min="0" step="1" [(ngModel)]="budgetDraft" (change)="updateBudget()" />
-            </label>
+            @if (!isAdmin()) {
+              <button type="button" class="deposit-open-btn" (click)="openDepositModal()">Deposit money</button>
+              @if (savedPaymentCardLabel) {
+                <span class="saved-card-pill">{{ savedPaymentCardLabel }}</span>
+              }
+            }
+          </div>
+        }
+
+        @if (showDepositModal) {
+          <div class="payment-backdrop" (click)="closeDepositModal()">
+            <section class="payment-modal" (click)="$event.stopPropagation()">
+              <header class="payment-head">
+                <div>
+                  <span>Bankroll top-up</span>
+                  <h4>Card payment</h4>
+                </div>
+                <button type="button" class="icon-btn" aria-label="Close payment dialog" (click)="closeDepositModal()">X</button>
+              </header>
+
+              <form class="payment-form" (ngSubmit)="confirmDeposit()">
+                <label>
+                  Amount
+                  <input type="number" min="1" step="1" name="depositAmount" [(ngModel)]="depositDraft" />
+                </label>
+
+                @if (savedPaymentCardLabel) {
+                  <label class="checkbox-row">
+                    <input type="checkbox" name="useSavedPaymentCard" [(ngModel)]="useSavedPaymentCard" />
+                    Use {{ savedPaymentCardLabel }}
+                  </label>
+                }
+
+                @if (!useSavedPaymentCard) {
+                  <label>
+                    Cardholder
+                    <input type="text" name="cardHolder" [(ngModel)]="cardHolder" autocomplete="cc-name" placeholder="Meno na karte" />
+                  </label>
+                  <label>
+                    Card number
+                    <input type="text" name="cardNumber" [(ngModel)]="cardNumber" inputmode="numeric" autocomplete="cc-number" placeholder="1234 5678 9012 3456" />
+                  </label>
+                  <div class="payment-grid">
+                    <label>
+                      Expiry
+                      <input type="text" name="cardExpiry" [(ngModel)]="cardExpiry" autocomplete="cc-exp" placeholder="MM/YY" />
+                    </label>
+                    <label>
+                      CVC
+                      <input type="password" name="cardCvv" [(ngModel)]="cardCvv" inputmode="numeric" autocomplete="cc-csc" placeholder="123" />
+                    </label>
+                  </div>
+                  <label class="checkbox-row">
+                    <input type="checkbox" name="savePaymentCard" [(ngModel)]="savePaymentCard" />
+                    Save card for next deposit
+                  </label>
+                }
+
+                @if (depositMessage) {
+                  <p class="payment-message">{{ depositMessage }}</p>
+                }
+
+                <button type="submit" class="bet-btn">Add {{ depositDraft || 0 }} EUR</button>
+              </form>
+            </section>
           </div>
         }
 

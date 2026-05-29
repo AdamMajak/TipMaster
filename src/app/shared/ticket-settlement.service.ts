@@ -3,7 +3,6 @@ import { firstValueFrom } from 'rxjs';
 import { BetSelection, BetTicket } from './betslip.service';
 import { EspnHockeyService } from './espn-hockey.service';
 import { EspnSoccerService } from './espn-soccer.service';
-import { EspnTennisLeague, EspnTennisService } from './espn-tennis.service';
 
 type SelectionResult = NonNullable<BetSelection['resultStatus']>;
 
@@ -18,7 +17,6 @@ interface SettledGame {
 export class TicketSettlementService {
   private readonly soccerService = inject(EspnSoccerService);
   private readonly hockeyService = inject(EspnHockeyService);
-  private readonly tennisService = inject(EspnTennisService);
 
   async evaluate(ticket: BetTicket): Promise<BetTicket> {
     const settledSelections = await Promise.all(
@@ -88,19 +86,6 @@ export class TicketSettlementService {
       };
     }
 
-    if (source.sport === 'tennis') {
-      const league = source.league === 'wta' ? 'wta' : 'atp';
-      const games = await firstValueFrom(this.tennisService.getScoreboard(league as EspnTennisLeague));
-      const game = games.find((item) => item.id === source.eventId);
-      if (!game) return null;
-      return {
-        homeScore: this.toNumberScore(game.scoreA),
-        awayScore: this.toNumberScore(game.scoreB),
-        completed: Boolean(game.completed || game.state?.toLowerCase() === 'post' || this.isFinal(game.status, game.detail)),
-        note: `${game.status} ${game.detail}`.trim(),
-      };
-    }
-
     return null;
   }
 
@@ -137,7 +122,7 @@ export class TicketSettlementService {
       return { sport, league, eventId };
     }
 
-    const match = selection.eventId.match(/^(football|hockey|tennis)-(.+)-([^-]+)$/);
+    const match = selection.eventId.match(/^(football|hockey)-(.+)-([^-]+)$/);
     if (!match) {
       return null;
     }
@@ -148,14 +133,6 @@ export class TicketSettlementService {
   private isFinal(status: string, detail: string): boolean {
     const normalized = `${status} ${detail}`.toLowerCase();
     return normalized.includes('final') || normalized.includes('post') || normalized.includes('ft');
-  }
-
-  private toNumberScore(value: string | undefined): number | undefined {
-    if (!value) {
-      return undefined;
-    }
-    const parsed = Number(value);
-    return Number.isFinite(parsed) ? parsed : undefined;
   }
 
   private formatScore(game: SettledGame): string | undefined {
