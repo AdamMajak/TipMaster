@@ -34,6 +34,10 @@ export class App {
   protected useSavedPaymentCard = false;
   protected savedPaymentCardLabel = '';
   protected depositMessage = '';
+  protected withdrawalIban = '';
+  protected withdrawalAmount = 10;
+  protected withdrawalMessage = '';
+  protected cashOutMessage = '';
   protected evaluatingTickets = false;
   protected authMode: 'login' | 'register' = 'login';
   protected loginEmail = '';
@@ -96,6 +100,7 @@ export class App {
       const userId = this.currentUser()?.id;
       this.savedPaymentCardLabel = userId ? this.loadSavedPaymentCardLabel(userId) : '';
       this.useSavedPaymentCard = Boolean(this.savedPaymentCardLabel);
+      this.withdrawalIban = userId ? this.loadSavedIban(userId) : '';
     });
   }
 
@@ -270,6 +275,56 @@ export class App {
     this.depositMessage = '';
   }
 
+  protected saveIban(): void {
+    const userId = this.currentUser()?.id;
+    const iban = this.normalizeIban(this.withdrawalIban);
+    if (!userId || !this.isIbanValid(iban)) {
+      this.withdrawalMessage = 'Enter a valid IBAN.';
+      return;
+    }
+
+    localStorage.setItem(this.ibanKey(userId), iban);
+    this.withdrawalIban = iban;
+    this.withdrawalMessage = 'IBAN saved.';
+  }
+
+  protected requestWithdrawal(): void {
+    const amount = Math.round(Number(this.withdrawalAmount) * 100) / 100;
+    const iban = this.normalizeIban(this.withdrawalIban);
+
+    if (!this.isAuthenticated()) {
+      this.withdrawalMessage = 'Login first to withdraw.';
+      return;
+    }
+
+    if (!this.isIbanValid(iban)) {
+      this.withdrawalMessage = 'Save a valid IBAN first.';
+      return;
+    }
+
+    if (!this.betSlipService.withdrawFromBudget(amount)) {
+      this.withdrawalMessage = 'Enter a valid amount within your bankroll.';
+      return;
+    }
+
+    this.saveIban();
+    this.withdrawalAmount = 10;
+    this.withdrawalMessage = `Mock withdrawal sent to ${this.maskIban(iban)}.`;
+  }
+
+  protected cashOut(ticketId: string): void {
+    const amount = this.betSlipService.cashOutTicket(ticketId);
+    this.cashOutMessage = amount === null
+      ? 'Cash out is available only for open tickets.'
+      : `Cash out accepted: ${amount.toFixed(2)} EUR added to bankroll.`;
+  }
+
+  protected cashOutValue(ticket: { stake: number; potentialWin: number }): string {
+    const base = ticket.stake + Math.max(0, ticket.potentialWin - ticket.stake) * 0.35;
+    const capped = Math.min(ticket.potentialWin * 0.82, base);
+    return Math.max(0, Math.round(capped * 100) / 100).toFixed(2);
+  }
+
   protected async evaluateTickets(): Promise<void> {
     this.evaluatingTickets = true;
     try {
@@ -291,6 +346,8 @@ export class App {
         return 'Prehrany';
       case 'void':
         return 'Storno';
+      case 'cashed-out':
+        return 'Cash out';
       default:
         return 'Wait';
     }
@@ -372,5 +429,29 @@ export class App {
 
   private paymentCardKey(userId: string): string {
     return `tipmaster-payment-card:${userId}`;
+  }
+
+  private loadSavedIban(userId: string): string {
+    if (typeof localStorage === 'undefined') {
+      return '';
+    }
+
+    return localStorage.getItem(this.ibanKey(userId)) ?? '';
+  }
+
+  private normalizeIban(value: string): string {
+    return value.replace(/\s+/g, '').toUpperCase();
+  }
+
+  private isIbanValid(value: string): boolean {
+    return /^[A-Z]{2}\d{2}[A-Z0-9]{11,30}$/.test(value);
+  }
+
+  private maskIban(value: string): string {
+    return value.length > 8 ? `${value.slice(0, 4)}...${value.slice(-4)}` : value;
+  }
+
+  private ibanKey(userId: string): string {
+    return `tipmaster-withdraw-iban:${userId}`;
   }
 }

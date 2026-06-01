@@ -12,6 +12,21 @@
   box-sizing: border-box;
 }
 
+button,
+a,
+summary,
+select,
+input,
+textarea {
+  touch-action: manipulation;
+}
+
+button,
+a,
+summary {
+  -webkit-tap-highlight-color: transparent;
+}
+
 html,
 body {
   margin: 0;

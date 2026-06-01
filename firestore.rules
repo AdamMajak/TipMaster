@@ -15,7 +15,7 @@ service cloud.firestore {
     }
 
     function bootstrapAdminEmail() {
-      return authEmail() in ['adajam45@gmail.com', 'davidkminek6@gmail.com'];
+      return authEmail() in ['davidkminek6@gmail.com'];
     }
 
     function hasUserDoc() {

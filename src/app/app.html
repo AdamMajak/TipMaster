@@ -138,6 +138,24 @@
               @if (savedPaymentCardLabel) {
                 <span class="saved-card-pill">{{ savedPaymentCardLabel }}</span>
               }
+
+              <form class="withdraw-form" (ngSubmit)="requestWithdrawal()">
+                <label>
+                  IBAN for withdrawal
+                  <input type="text" name="withdrawalIban" [(ngModel)]="withdrawalIban" placeholder="SK00 0000 0000 0000 0000 0000" />
+                </label>
+                <div class="withdraw-actions">
+                  <label>
+                    Amount
+                    <input type="number" min="1" step="1" name="withdrawalAmount" [(ngModel)]="withdrawalAmount" />
+                  </label>
+                  <button type="button" class="clear-btn" (click)="saveIban()">Save IBAN</button>
+                  <button type="submit" class="deposit-open-btn">Withdraw</button>
+                </div>
+                @if (withdrawalMessage) {
+                  <p class="account-message">{{ withdrawalMessage }}</p>
+                }
+              </form>
             }
           </div>
         }
@@ -258,6 +276,9 @@
               </button>
               <button type="button" class="ghost-btn" (click)="clearHistory()">Clear</button>
             </header>
+            @if (cashOutMessage) {
+              <p class="account-message">{{ cashOutMessage }}</p>
+            }
             <div class="history-list">
               @for (ticket of tickets(); track ticket.id) {
                 <article class="history-card">
@@ -282,6 +303,11 @@
                       </span>
                     }
                   </div>
+                  @if ((ticket.status ?? 'pending') === 'pending') {
+                    <button type="button" class="cashout-btn" (click)="cashOut(ticket.id)">
+                      Cash out {{ cashOutValue(ticket) }} EUR
+                    </button>
+                  }
                 </article>
               }
             </div>

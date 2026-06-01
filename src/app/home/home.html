@@ -1,32 +1,47 @@
 <section class="home-page">
   <section class="hero-card">
-    <div>
-      <p class="tag">TIPMASTER LIVE ODDS</p>
-      <h2>Betfair Orbit feed connected</h2>
+    <div class="hero-copy">
+      <p class="tag">TIPMASTER ANALYSIS HUB</p>
+      <h2>Today’s best picks</h2>
       <p class="lead">
-        Live odds are loaded from The Odds API.
+        Community analyses, AI-assisted picks and upcoming fixtures are pulled into one focused dashboard.
       </p>
       <div class="hero-actions">
-        <a routerLink="/football" class="action ghost">Open Football</a>
         <a routerLink="/analysis" class="action primary">Open Analyses</a>
+        <a routerLink="/football" class="action ghost">Open Football</a>
       </div>
     </div>
-    <div class="stat-grid">
-      <article><span>Provider</span><strong>The Odds API</strong></article>
-      <article><span>Active Sports</span><strong>{{ sportsCount || '-' }}</strong></article>
-      <article><span>Status</span><strong>{{ loading ? 'Loading' : 'Live' }}</strong></article>
-    </div>
+
+    <aside class="hero-analysis">
+      <span class="spotlight-label">Latest analysis</span>
+      @if (analysesLoading) {
+        <p class="lead">Loading community cards...</p>
+      } @else if (latestAnalyses.length) {
+        <strong>{{ latestAnalyses[0].title }}</strong>
+        <p>{{ latestAnalyses[0].matchLabel }}</p>
+        <div class="spotlight-metrics">
+          <span>Pick <b>{{ latestAnalyses[0].pick || '-' }}</b></span>
+          <span>Confidence <b>{{ latestAnalyses[0].confidence || '-' }}/5</b></span>
+        </div>
+        <a routerLink="/analysis" class="spotlight-link">Read all analyses</a>
+      } @else {
+        <strong>No analysis yet today</strong>
+        <p>Publish the first card and it will show here.</p>
+        <a routerLink="/analysis" class="spotlight-link">Create analysis</a>
+      }
+    </aside>
   </section>
 
-  <section class="sport-links">
-    <a routerLink="/football">Football</a>
-    <a routerLink="/hockey">Hockey</a>
-    <a routerLink="/analysis">Analyses</a>
+  <section class="stat-grid">
+    <article><span>Provider</span><strong>The Odds API</strong></article>
+    <article><span>Active Sports</span><strong>{{ sportsCount || '-' }}</strong></article>
+    <article><span>Status</span><strong>{{ loading ? 'Loading' : 'Live' }}</strong></article>
   </section>
 
   <section class="widget-panel analysis-panel">
     <header class="analysis-header">
       <div>
+        <span class="tag">Featured cards</span>
         <h3>Latest Analyses</h3>
         <p class="lead">Fresh community cards saved to the database for today.</p>
       </div>
@@ -55,6 +70,12 @@
         }
       </div>
     }
+  </section>
+
+  <section class="sport-links">
+    <a routerLink="/analysis">Analyses</a>
+    <a routerLink="/football">Football</a>
+    <a routerLink="/hockey">Hockey</a>
   </section>
 
   @if (error) {

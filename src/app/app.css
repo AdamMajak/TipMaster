@@ -97,8 +97,11 @@
   position: sticky;
   top: 86px;
   display: grid;
+  grid-template-rows: auto minmax(0, 1fr);
   gap: 12px;
   align-content: start;
+  max-height: calc(100vh - 98px);
+  min-height: 0;
 }
 
 .account-panel,
@@ -107,6 +110,13 @@
   border-radius: 14px;
   background: linear-gradient(155deg, var(--panel), #0e192c);
   padding: 12px;
+}
+
+.betslip {
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
 
 .account-header {
@@ -131,7 +141,7 @@
 
 .account-user {
   display: grid;
-  gap: 8px;
+  gap: 10px;
 }
 
 .account-user-top {
@@ -141,6 +151,11 @@
   flex-wrap: wrap;
 }
 
+.profile-link {
+  color: #9fc5ff;
+  line-height: 1.3;
+}
+
 .account-user strong {
   color: #f1f6ff;
 }
@@ -148,6 +163,40 @@
 .account-user span {
   color: #9fb5d8;
   font-size: 0.84rem;
+}
+
+.admin-shortcut {
+  border: 1px solid #314a72;
+  background: #14253f;
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: center;
+}
+
+.admin-shortcut div {
+  min-width: 0;
+  display: grid;
+  gap: 3px;
+}
+
+.admin-shortcut strong {
+  display: block;
+  color: #f1f6ff;
+}
+
+.admin-shortcut span {
+  display: block;
+  color: #9fb5d8;
+  font-size: 0.82rem;
+  line-height: 1.35;
+}
+
+.admin-shortcut .ghost-btn {
+  width: fit-content;
+  white-space: nowrap;
 }
 
 .auth-switch {
@@ -471,6 +520,31 @@
   border-radius: 999px;
   padding: 5px 9px;
   color: #dce9ff;
+}
+
+.withdraw-form {
+  border-top: 1px solid #263f64;
+  padding-top: 10px;
+  display: grid;
+  gap: 8px;
+}
+
+.withdraw-form label {
+  display: grid;
+  gap: 5px;
+}
+
+.withdraw-actions {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto auto;
+  gap: 8px;
+  align-items: end;
+}
+
+.withdraw-actions .clear-btn,
+.withdraw-actions .deposit-open-btn {
+  min-height: 36px;
+  padding: 8px 10px;
 }
 
 .payment-backdrop {
@@ -811,6 +885,17 @@
   font-size: 0.76rem;
 }
 
+.cashout-btn {
+  width: 100%;
+  border: 1px solid rgba(245, 178, 92, 0.68);
+  background: linear-gradient(120deg, rgba(240, 154, 43, 0.95), rgba(246, 194, 107, 0.95));
+  color: #172033;
+  border-radius: 9px;
+  padding: 8px 10px;
+  font-weight: 800;
+  cursor: pointer;
+}
+
 @media (max-width: 860px) {
   .topbar {
     flex-direction: column;
@@ -824,16 +909,19 @@
 
   .right-rail {
     position: static;
+    max-height: none;
   }
 
   .betslip {
     position: static;
+    overflow: visible;
   }
 
   .admin-filter-row,
   .admin-money-row,
   .history-metrics,
-  .payment-grid {
+  .payment-grid,
+  .withdraw-actions {
     grid-template-columns: 1fr;
   }
 }

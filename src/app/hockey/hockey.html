@@ -1,11 +1,18 @@
 <section class="sport-page">
   <header class="sport-hero">
-    <div>
+    <div class="sport-hero-copy">
       <p class="sport-tag">HOCKEY</p>
       <h2>{{ pageTitle }}</h2>
       <p>{{ subtitle }}</p>
     </div>
-    <span class="sport-status">NHL live feed</span>
+    <div class="sport-hero-side">
+      <span class="sport-status">NHL live feed</span>
+      <div class="hero-metrics">
+        <article><span>Program</span><strong>{{ scheduledGames.length }}</strong></article>
+        <article><span>Live</span><strong>{{ liveGames.length }}</strong></article>
+        <article><span>Results</span><strong>{{ finishedGames.length }}</strong></article>
+      </div>
+    </div>
   </header>
 
   <section class="widget-block">

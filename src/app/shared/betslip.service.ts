@@ -37,7 +37,7 @@ export interface BetTicket {
   totalOdds: number;
   potentialWin: number;
   selections: BetSelection[];
-  status?: 'pending' | 'won' | 'lost' | 'void';
+  status?: 'pending' | 'won' | 'lost' | 'void' | 'cashed-out';
   settledAt?: string;
   returnedAmount?: number;
 }
@@ -236,6 +236,62 @@ export class BetSlipService {
     this.setBudget(this.budgetSignal() + safeAmount, userId);
   }
 
+  withdrawFromBudget(amount: number): boolean {
+    const userId = this.authService.currentUser()?.id;
+    const safeAmount = Math.round(Number(amount) * 100) / 100;
+    if (!userId || !Number.isFinite(safeAmount) || safeAmount <= 0 || safeAmount > this.budgetSignal()) {
+      return false;
+    }
+
+    this.setBudget(this.budgetSignal() - safeAmount, userId);
+    return true;
+  }
+
+  cashOutTicket(ticketId: string): number | null {
+    const userId = this.authService.currentUser()?.id;
+    if (!userId) {
+      return null;
+    }
+
+    const ticket = this.ticketsSignal().find((item) => item.id === ticketId);
+    if (!ticket || (ticket.status ?? 'pending') !== 'pending') {
+      return null;
+    }
+
+    const amount = this.cashOutValue(ticket);
+    const nextTicket = this.normalizeTicket({
+      ...ticket,
+      status: 'cashed-out',
+      settledAt: new Date().toISOString(),
+      returnedAmount: amount,
+      selections: ticket.selections.map((selection) => ({
+        ...selection,
+        resultStatus: selection.resultStatus ?? 'void',
+        resultNote: selection.resultNote ?? 'Cash out',
+      })),
+    });
+
+    const next = this.ticketsSignal().map((item) => (item.id === ticketId ? nextTicket : item));
+    this.ticketsSignal.set(next);
+    this.saveTickets(next, userId);
+    this.setBudget(this.budgetSignal() + amount, userId);
+
+    const db = firebaseDb;
+    if (db) {
+      void setDoc(doc(db, 'users', userId, 'tickets', nextTicket.id), nextTicket, { merge: true })
+        .then(() => this.remoteErrorSignal.set(null))
+        .catch((err: any) => {
+          const message = err?.message ? String(err.message) : 'Unknown error';
+          const code = err?.code ? String(err.code) : '';
+          this.remoteErrorSignal.set(
+            `Nepodarilo sa ulozit cash out do Firestore. ${code ? `(${code}) ` : ''}${message}`
+          );
+        });
+    }
+
+    return amount;
+  }
+
   settleTicket(ticket: BetTicket): void {
     const userId = this.authService.currentUser()?.id;
     if (!userId || !ticket.id) {
@@ -406,6 +462,12 @@ export class BetSlipService {
       return 'void';
     }
     return 'won';
+  }
+
+  private cashOutValue(ticket: BetTicket): number {
+    const base = ticket.stake + Math.max(0, ticket.potentialWin - ticket.stake) * 0.35;
+    const capped = Math.min(ticket.potentialWin * 0.82, base);
+    return Math.max(0, Math.round(capped * 100) / 100);
   }
   private ticketsKey(userId: string): string {
     return `${this.ticketsStoragePrefix}:${userId}`;

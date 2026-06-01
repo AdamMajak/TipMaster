@@ -1,13 +1,13 @@
 <section class="analysis-page">
   <header class="analysis-hero">
     <div class="hero-copy">
-      <span class="eyebrow">TipMaster Lab</span>
-      <h2>Analyses</h2>
-      <p class="lead">Build sharper reads, track your confidence, and rate the strongest takes from the community.</p>
+      <span class="eyebrow">Main workspace</span>
+      <h2>Match analyses</h2>
+      <p class="lead">Pick a fixture, generate a compact AI read, add confidence, and publish a clean betting card.</p>
 
       <div class="hero-stats">
         <article>
-          <span>Matches live</span>
+          <span>Matches</span>
           <strong>{{ filteredMatches.length }}</strong>
         </article>
         <article>
@@ -26,11 +26,11 @@
     </div>
 
     <div class="hero-tools">
-      <div class="hero-tool-card">
+      <div class="hero-tool-card primary-tool">
         <div class="date-control">
-          <span>Analysis date</span>
+          <span>Match filter</span>
           <strong>{{ analysisDate | date: 'd MMM yyyy' }}</strong>
-          <input type="date" name="analysisDateTop" [(ngModel)]="analysisDate" (ngModelChange)="onAnalysisDateChange()" />
+          <small>Date is now handled inside the match filters.</small>
         </div>
         <button type="button" class="action ghost" (click)="reloadMatches()" [disabled]="loadingMatches">
           {{ loadingMatches ? 'Refreshing...' : 'Refresh matches' }}
@@ -38,7 +38,7 @@
       </div>
 
       <div class="hero-note">
-        <strong>Match pool</strong>
+        <strong>Match source</strong>
         <span>
           @if (showingDemoMatches) {
             Demo source active
@@ -50,182 +50,41 @@
     </div>
   </header>
 
-  <section class="panel create-panel">
+  <section class="panel archive-panel">
     <header class="panel-head">
       <div>
-        <span class="section-kicker">Compose</span>
-        <h3>Create analysis</h3>
-        <p class="lead">Choose fixtures, lock your pick, and turn your reasoning into a clean card.</p>
+        <span class="section-kicker">Analyses</span>
+        <h3>Finished analyses</h3>
+        <p class="lead">Ready cards are first, so you can browse published takes before creating a new one.</p>
       </div>
-      <span class="pill">New</span>
+      <span class="pill">{{ visibleAnalyses().length }} shown</span>
     </header>
 
-    @if (errorMatches) {
-      <p class="status-banner" [class.error]="!showingDemoMatches">{{ errorMatches }}</p>
-    }
+    <div class="archive-filters">
+      <label>
+        Date
+        <select name="analysisViewDate" [(ngModel)]="analysisViewDate">
+          <option value="all">All dates</option>
+          @for (date of availableAnalysisDates(); track date) {
+            <option [value]="date">{{ date }}</option>
+          }
+        </select>
+      </label>
 
-    @if (!isAuthenticated()) {
-      <p class="lead empty-state">Login first to create analyses.</p>
-    } @else {
-      <form class="analysis-form" (ngSubmit)="addAnalysis()">
-        <div class="form-row">
-          <label>
-            Sport
-            <select [(ngModel)]="sportFilter" name="sportFilter">
-              <option value="all">All</option>
-              <option value="soccer">Football</option>
-              <option value="hockey">Hockey</option>
-            </select>
-          </label>
+      <label>
+        Board
+        <select name="analysisViewScope" [(ngModel)]="analysisViewScope">
+          <option value="all">All analyses</option>
+          <option value="mine">My analyses</option>
+          <option value="community">Community</option>
+        </select>
+      </label>
 
-          <label>
-            Search
-            <input
-              type="text"
-              name="matchSearch"
-              [(ngModel)]="matchSearch"
-              placeholder="Team, player, league..."
-            />
-          </label>
-        </div>
-
-        <div class="picker-grid">
-          <div class="picker-surface picker-list">
-            <div class="picker-title">
-              <div>
-                <strong>Available matches</strong>
-                <p class="mini-copy">Zápasy pre dátum: <b>{{ analysisDate }}</b></p>
-              </div>
-              @if (loadingMatches) {
-                <span class="muted">Loading...</span>
-              } @else {
-                <span class="count-chip">{{ filteredMatches.length }} shown</span>
-              }
-            </div>
-
-            @if (!loadingMatches && !filteredMatches.length) {
-              <p class="lead muted empty-state">No matches for the current filter.</p>
-            } @else {
-              <div class="match-list">
-                @for (match of filteredMatches; track match.id) {
-                  <button
-                    type="button"
-                    class="match-card"
-                    [class.selected]="selectedMatchIds.includes(match.id)"
-                    (click)="toggleMatch(match.id)"
-                  >
-                    <div class="match-top">
-                      <strong>{{ formatMatch(match) }}</strong>
-                      <span>{{ match.kickoff | date: 'EEE d MMM, HH:mm' }}</span>
-                    </div>
-                    <div class="match-meta">
-                      <span>{{ match.sportTitle }}</span>
-                      <span class="dot"></span>
-                      <span>{{ match.competition }}</span>
-                      @if (match.synthetic) {
-                        <span class="badge">demo</span>
-                      }
-                    </div>
-                  </button>
-                }
-              </div>
-            }
-          </div>
-
-          <div class="picker-surface picker-selected">
-            <div class="picker-title">
-              <div>
-                <strong>Selected ticket</strong>
-                <p class="mini-copy">Build one focused pick or a grouped multi-match note.</p>
-              </div>
-              <span class="count-chip">{{ selectedCount }} selected</span>
-            </div>
-
-            @if (!selectedCount) {
-              <p class="lead muted empty-state">Click a match to add it here.</p>
-            } @else {
-              <div class="selected-list">
-                @for (match of selectedMatches; track match.id) {
-                  <div class="selected-item">
-                    <div>
-                      <strong>{{ formatMatch(match) }}</strong>
-                      <small>{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} • {{ match.competition }}</small>
-                    </div>
-                    <button type="button" class="ghost-btn" (click)="removeSelected(match.id)">Remove</button>
-                  </div>
-                }
-              </div>
-            }
-
-            @if (selectedCount) {
-              <button type="button" class="ghost-btn clear-btn" (click)="clearSelected()">Clear selection</button>
-            }
-
-            <button
-              type="button"
-              class="ghost-btn"
-              [disabled]="selectedCount !== 1 || aiDraftLoading"
-              (click)="generateAiDraft()">
-              {{ aiDraftLoading ? 'AI pise...' : 'AI napis analyzu' }}
-            </button>
-          </div>
-        </div>
-
-        <div class="form-shell">
-          <label>
-            Custom label (optional)
-            <input
-              type="text"
-              name="matchLabel"
-              [(ngModel)]="matchLabel"
-              [disabled]="selectedCount > 0"
-              placeholder="Used only when nothing is selected"
-            />
-          </label>
-
-          <label>
-            Title
-            <input type="text" name="title" [(ngModel)]="title" placeholder="Short title" />
-          </label>
-
-          <label>
-            Analysis
-            <textarea rows="5" name="summary" [(ngModel)]="summary" placeholder="Your reasoning, form, trend..."></textarea>
-          </label>
-
-          <div class="form-row">
-            <label>
-              Pick
-              @if (selectedCount !== 1) {
-                <select name="pickDisabled" [ngModel]="''" [ngModelOptions]="{ standalone: true }" disabled>
-                  <option value="">Select exactly 1 match to pick</option>
-                </select>
-              } @else {
-                <select name="pick" [(ngModel)]="pick">
-                  <option value="">No pick</option>
-                  @for (option of pickOptions; track option.value) {
-                    <option [value]="option.value">{{ option.label }}</option>
-                  }
-                </select>
-              }
-            </label>
-            <label>
-              Confidence (1-5)
-              <input type="number" min="1" max="5" step="1" name="confidence" [(ngModel)]="confidence" />
-            </label>
-          </div>
-        </div>
-
-        @if (formMessage) {
-          <p class="status-banner error">{{ formMessage }}</p>
-        }
-        @if (analysisRemoteError()) {
-          <p class="status-banner error">{{ analysisRemoteError() }}</p>
-        }
-
-        <button type="submit" class="action primary">Add analysis</button>
-      </form>
-    }
+      <label>
+        Search
+        <input type="search" name="analysisViewSearch" [(ngModel)]="analysisViewSearch" placeholder="Author, match, title, pick..." />
+      </label>
+    </div>
   </section>
 
   <section class="panel">
@@ -233,13 +92,7 @@
       <div>
         <span class="section-kicker">Personal board</span>
         <h3>My analyses</h3>
-        <p class="lead">
-          @if (isAdmin()) {
-            Your analyses for the selected date. As admin, you can also remove any analysis below.
-          } @else {
-            Only your analyses for the selected date.
-          }
-        </p>
+        <p class="lead">Your published cards from the current archive filter.</p>
       </div>
       <span class="pill">My</span>
     </header>
@@ -247,7 +100,7 @@
     @if (!isAuthenticated()) {
       <p class="lead empty-state">Login to see and manage your analyses.</p>
     } @else if (!myAnalyses().length) {
-      <p class="lead muted empty-state">No analyses yet for this date.</p>
+      <p class="lead muted empty-state">No analyses match the current filter.</p>
     } @else {
       <div class="analysis-grid">
         @for (item of myAnalyses(); track item.id) {
@@ -259,17 +112,38 @@
               </div>
               <span>{{ item.kickoff ? (item.kickoff | date: 'EEE d MMM, HH:mm') : (item.createdAt | date: 'EEE d MMM, HH:mm') }}</span>
             </div>
+
             <p class="analysis-meta">{{ item.matchLabel }}</p>
             <p class="analysis-text">{{ item.summary }}</p>
 
             <div class="metric-row">
-              <span class="metric-pill">Tip <b>{{ item.pick || '-' }}</b></span>
+              <span class="metric-pill tip">Tip <b>{{ item.pick || '-' }}</b></span>
               <span class="metric-pill">Confidence <b>{{ item.confidence || '-' }}/5</b></span>
               <span class="metric-pill">Rating <b>{{ averageStars(item) }}/5</b></span>
             </div>
 
             @if (item.relatedMatches?.length) {
               <p class="analysis-meta">Matches: {{ relatedMatchesLabel(item) }}</p>
+            }
+
+            @if (item.ratings.length) {
+              <div class="rating-list">
+                @for (rating of item.ratings; track rating.authorId) {
+                  <article class="rating-card">
+                    <div class="rating-head">
+                      <strong>{{ rating.authorName }}</strong>
+                      <span>{{ rating.stars }}/5</span>
+                    </div>
+                    @if (rating.comment) {
+                      <p>{{ rating.comment }}</p>
+                    } @else {
+                      <p class="muted">No written comment.</p>
+                    }
+                  </article>
+                }
+              </div>
+            } @else {
+              <p class="lead muted empty-state">No ratings or comments yet.</p>
             }
 
             <div class="analysis-footer">
@@ -288,13 +162,13 @@
       <div>
         <span class="section-kicker">Community pulse</span>
         <h3>Community</h3>
-        <p class="lead">Analyses by other users for the same date, with a cleaner rating workflow and review feed.</p>
+        <p class="lead">Compare other takes from the current archive filter and rate the strongest reads.</p>
       </div>
       <span class="pill">Rate</span>
     </header>
 
     @if (!communityAnalyses().length) {
-      <p class="lead muted empty-state">No community analyses for this date yet.</p>
+      <p class="lead muted empty-state">No community analyses match the current filter.</p>
     } @else {
       <div class="analysis-grid">
         @for (item of communityAnalyses(); track item.id) {
@@ -306,11 +180,12 @@
               </div>
               <span>{{ item.kickoff ? (item.kickoff | date: 'EEE d MMM, HH:mm') : (item.createdAt | date: 'EEE d MMM, HH:mm') }}</span>
             </div>
+
             <p class="analysis-meta">{{ item.matchLabel }}</p>
             <p class="analysis-text">{{ item.summary }}</p>
 
             <div class="metric-row">
-              <span class="metric-pill">Tip <b>{{ item.pick || '-' }}</b></span>
+              <span class="metric-pill tip">Tip <b>{{ item.pick || '-' }}</b></span>
               <span class="metric-pill">Confidence <b>{{ item.confidence || '-' }}/5</b></span>
               <span class="metric-pill">Avg rating <b>{{ averageStars(item) }}/5</b></span>
               <span class="metric-pill">Reviews <b>{{ item.ratings.length }}</b></span>
@@ -388,6 +263,247 @@
           </article>
         }
       </div>
+    }
+  </section>
+
+  <section class="panel rewards-panel">
+    <header class="panel-head">
+      <div>
+        <span class="section-kicker">Rewards</span>
+        <h3>Analyzer leaderboard</h3>
+        <p class="lead">Positive ratings and comments push strong analysts to the top.</p>
+      </div>
+      <span class="pill">10 EUR monthly prize</span>
+    </header>
+
+    <div class="leaderboard-grid">
+      <article class="leader-card">
+        <span class="leader-label">Best analyzer</span>
+        @if (topAnalyzer(); as leader) {
+          <strong>{{ leader.authorName }}</strong>
+          <div class="leader-metrics">
+            <span>Score <b>{{ leader.score.toFixed(1) }}</b></span>
+            <span>Reviews <b>{{ leader.reviews }}</b></span>
+            <span>Positive <b>{{ leader.positiveReviews }}</b></span>
+          </div>
+        } @else {
+          <p class="lead muted">No rated analyses yet.</p>
+        }
+      </article>
+
+      <article class="leader-card monthly">
+        <span class="leader-label">Best this month</span>
+        @if (monthlyAnalyzer(); as leader) {
+          <strong>{{ leader.authorName }}</strong>
+          <div class="leader-metrics">
+            <span>Prize <b>10 EUR</b></span>
+            <span>Score <b>{{ leader.score.toFixed(1) }}</b></span>
+            <span>Cards <b>{{ leader.analyses }}</b></span>
+          </div>
+          @if (canClaimMonthlyPrize()) {
+            <button type="button" class="action primary" (click)="claimMonthlyPrize()">Claim 10 EUR</button>
+          }
+        } @else {
+          <p class="lead muted">No monthly leader yet.</p>
+        }
+      </article>
+
+      @if (prizeMessage) {
+        <p class="status-banner">{{ prizeMessage }}</p>
+      }
+    </div>
+  </section>
+
+  <section class="panel create-panel">
+    <header class="panel-head">
+      <div>
+        <span class="section-kicker">Create</span>
+        <h3>Analysis desk</h3>
+        <p class="lead">Everything important is in one flow: match, pick, short reasoning, publish.</p>
+      </div>
+      <span class="pill">{{ selectedCount }} selected</span>
+    </header>
+
+    @if (errorMatches) {
+      <p class="status-banner" [class.error]="!showingDemoMatches">{{ errorMatches }}</p>
+    }
+
+    @if (!isAuthenticated()) {
+      <p class="lead empty-state">Login first to create analyses.</p>
+    } @else {
+      <form class="analysis-form" (ngSubmit)="addAnalysis()">
+        <div class="picker-grid">
+          <div class="picker-surface picker-list">
+            <div class="picker-title">
+              <div>
+                <span class="step-chip">1</span>
+                <strong>Choose match</strong>
+                <p class="mini-copy">Future fixtures for <b>{{ analysisDate | date: 'd MMM yyyy' }}</b></p>
+              </div>
+              @if (loadingMatches) {
+                <span class="muted">Loading...</span>
+              } @else {
+                <span class="count-chip">{{ filteredMatches.length }} shown</span>
+              }
+            </div>
+
+            <div class="match-toolbar">
+              <label>
+                Date
+                <input
+                  type="date"
+                  name="analysisDateFilter"
+                  [min]="todayDate"
+                  [(ngModel)]="analysisDate"
+                  (ngModelChange)="onAnalysisDateChange()" />
+              </label>
+
+              <label>
+                Sport
+                <select [(ngModel)]="sportFilter" name="sportFilter">
+                  <option value="all">All</option>
+                  <option value="soccer">Football</option>
+                  <option value="hockey">Hockey</option>
+                </select>
+              </label>
+
+              <label>
+                Search
+                <input type="text" name="matchSearch" [(ngModel)]="matchSearch" placeholder="Team or league" />
+              </label>
+            </div>
+
+            @if (!loadingMatches && !filteredMatches.length) {
+              <p class="lead muted empty-state">No matches for the current filter.</p>
+            } @else {
+              <div class="match-list">
+                @for (match of filteredMatches; track match.id) {
+                  <button
+                    type="button"
+                    class="match-card"
+                    [class.selected]="selectedMatchIds.includes(match.id)"
+                    (click)="toggleMatch(match.id)"
+                  >
+                    <div class="match-top">
+                      <strong>{{ formatMatch(match) }}</strong>
+                      <span>{{ match.kickoff | date: 'EEE d MMM, HH:mm' }}</span>
+                    </div>
+                    <div class="match-meta">
+                      <span>{{ match.sportTitle }}</span>
+                      <span class="dot"></span>
+                      <span>{{ match.competition }}</span>
+                      @if (match.synthetic) {
+                        <span class="badge">demo</span>
+                      }
+                    </div>
+                  </button>
+                }
+              </div>
+            }
+          </div>
+
+          <div class="picker-surface picker-selected">
+            <div class="picker-title">
+              <div>
+                <span class="step-chip">2</span>
+                <strong>Draft card</strong>
+                <p class="mini-copy">One selected match gives the best AI prediction.</p>
+              </div>
+            </div>
+
+            @if (!selectedCount) {
+              <p class="lead muted empty-state">Click a match to add it here.</p>
+            } @else {
+              <div class="selected-list">
+                @for (match of selectedMatches; track match.id) {
+                  <div class="selected-item">
+                    <div>
+                      <strong>{{ formatMatch(match) }}</strong>
+                      <small>{{ match.kickoff | date: 'EEE d MMM, HH:mm' }} - {{ match.competition }}</small>
+                    </div>
+                    <button type="button" class="ghost-btn" (click)="removeSelected(match.id)">Remove</button>
+                  </div>
+                }
+              </div>
+            }
+
+            @if (selectedCount) {
+              <button type="button" class="ghost-btn clear-btn" (click)="clearSelected()">Clear selection</button>
+            }
+
+            <div class="pick-panel">
+              <label>
+                Custom label
+                <input
+                  type="text"
+                  name="matchLabel"
+                  [(ngModel)]="matchLabel"
+                  [disabled]="selectedCount > 0"
+                  placeholder="Only without selected match"
+                />
+              </label>
+
+              <label>
+                Title
+                <input type="text" name="title" [(ngModel)]="title" placeholder="Short, sharp title" />
+              </label>
+
+              <label>
+                Analysis
+                <textarea rows="5" name="summary" [(ngModel)]="summary" placeholder="Main reason, risk, final take."></textarea>
+              </label>
+            </div>
+
+            <div class="form-row compact-row">
+              <label>
+                Pick
+                @if (selectedCount !== 1) {
+                  <select name="pickDisabled" [ngModel]="''" [ngModelOptions]="{ standalone: true }" disabled>
+                    <option value="">Select exactly 1 match</option>
+                  </select>
+                } @else {
+                  <select name="pick" [(ngModel)]="pick">
+                    <option value="">No pick</option>
+                    @for (option of pickOptions; track option.value) {
+                      <option [value]="option.value">{{ option.label }}</option>
+                    }
+                  </select>
+                }
+              </label>
+
+              <label>
+                Confidence
+                <input
+                  type="number"
+                  min="1"
+                  max="5"
+                  step="1"
+                  name="confidence"
+                  [(ngModel)]="confidence"
+                  (ngModelChange)="setConfidence($event)" />
+              </label>
+            </div>
+
+            <div class="desk-actions">
+              <button
+                type="button"
+                class="action ghost"
+                [disabled]="selectedCount !== 1 || aiDraftLoading"
+                (click)="generateAiDraft()">
+                {{ aiDraftLoading ? 'Writing...' : 'Generate AI' }}
+              </button>
+              <button type="submit" class="action primary">Publish analysis</button>
+            </div>
+          </div>
+        </div>
+
+        @if (formMessage) {
+          <p class="status-banner error">{{ formMessage }}</p>
+        }
+        @if (analysisRemoteError()) {
+          <p class="status-banner error">{{ analysisRemoteError() }}</p>
+        }
+      </form>
     }
   </section>
 </section>

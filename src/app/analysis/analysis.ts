@@ -6,6 +6,7 @@ import { catchError, forkJoin, map, of, type Observable } from 'rxjs';
 import { AnalysisRating, AnalysisService, UserAnalysis } from '../shared/analysis.service';
 import { AiAnalysisService } from '../shared/ai-analysis.service';
 import { AuthService } from '../shared/auth.service';
+import { BetSlipService } from '../shared/betslip.service';
 import { EspnHockeyService, HockeyGame } from '../shared/espn-hockey.service';
 import { ESPN_SOCCER_LEAGUES } from '../shared/espn-soccer-leagues';
 import { EspnSoccerService, SoccerGame } from '../shared/espn-soccer.service';
@@ -25,6 +26,17 @@ interface AnalysisMatch {
 
 type SportFilter = 'all' | 'soccer' | 'hockey';
 type PickOption = { value: string; label: string };
+type AnalysisScopeFilter = 'all' | 'mine' | 'community';
+
+interface AnalyzerStats {
+  authorId: string;
+  authorName: string;
+  analyses: number;
+  reviews: number;
+  positiveReviews: number;
+  averageStars: number;
+  score: number;
+}
 
 @Component({
   selector: 'app-analyses',
@@ -36,6 +48,7 @@ export class Analyses implements OnInit {
   private readonly authService = inject(AuthService);
   private readonly analysisService = inject(AnalysisService);
   private readonly aiAnalysisService = inject(AiAnalysisService);
+  private readonly betSlipService = inject(BetSlipService);
   private readonly soccerService = inject(EspnSoccerService);
   private readonly hockeyService = inject(EspnHockeyService);
 
@@ -58,6 +71,10 @@ export class Analyses implements OnInit {
 
   readonly todayDate = this.getDateKey(new Date());
   analysisDate = this.todayDate;
+  analysisViewDate = 'all';
+  analysisViewScope: AnalysisScopeFilter = 'all';
+  analysisViewSearch = '';
+  prizeMessage = '';
 
   analyses: UserAnalysis[] = [];
   reviewStars: Record<string, number> = {};
@@ -87,6 +104,7 @@ export class Analyses implements OnInit {
       case 'hockey':
         return [
           { value: '1', label: '1' },
+          { value: 'X', label: 'X (Draw)' },
           { value: '2', label: '2' },
         ];
       default:
@@ -97,28 +115,25 @@ export class Analyses implements OnInit {
   constructor(private readonly oddsService: OddsService) {
     effect(() => {
       this.authService.currentUser();
-      const stored = this.analysisService.getAll();
-      const pruned = stored.filter((item) => item.analysisDate >= this.todayDate && !item.id.startsWith('seed-'));
-      if (pruned.length !== stored.length) {
-        this.analysisService.replaceAll(pruned);
-      }
-      this.analyses = pruned;
+      this.analyses = this.analysisService.getAll().filter((item) => !item.id.startsWith('seed-'));
     });
   }
 
   ngOnInit(): void {
     this.reloadMatches();
-    void this.loadAnalysesForDate();
+    void this.loadAllAnalyses();
   }
 
   onAnalysisDateChange(): void {
-    void this.loadAnalysesForDate();
+    if (!this.analysisDate || this.analysisDate < this.todayDate) {
+      this.analysisDate = this.todayDate;
+    }
+    this.clearSelected();
+    this.reloadMatches();
   }
 
-  private async loadAnalysesForDate(): Promise<void> {
-    const dateKey = (this.analysisDate ?? '').trim() || this.todayDate;
-    this.analysisDate = dateKey;
-    this.analyses = await this.analysisService.getByDate(dateKey);
+  private async loadAllAnalyses(): Promise<void> {
+    this.analyses = (await this.analysisService.getAllAnalyses()).filter((item) => !item.id.startsWith('seed-'));
   }
 
   reloadMatches(): void {
@@ -241,7 +256,7 @@ export class Analyses implements OnInit {
         this.title = draft.title;
         this.summary = draft.summary;
         this.pick = draft.pick ?? '';
-        this.confidence = draft.confidence;
+        this.setConfidence(draft.confidence);
         this.aiDraftLoading = false;
       },
       error: () => {
@@ -249,7 +264,7 @@ export class Analyses implements OnInit {
         this.title = draft.title;
         this.summary = draft.summary;
         this.pick = draft.pick ?? '';
-        this.confidence = draft.confidence;
+        this.setConfidence(draft.confidence);
         this.aiDraftLoading = false;
       },
     });
@@ -281,6 +296,12 @@ export class Analyses implements OnInit {
       return;
     }
 
+    if (this.analysisDate < this.todayDate) {
+      this.formMessage = 'You can create analyses only for today or upcoming matches.';
+      this.analysisDate = this.todayDate;
+      return;
+    }
+
     if (!computedLabel) {
       this.formMessage = 'Select matches or fill in a custom label.';
       return;
@@ -290,6 +311,8 @@ export class Analyses implements OnInit {
       this.formMessage = 'Fill in title and analysis text.';
       return;
     }
+
+    this.setConfidence(this.confidence);
 
     const created: UserAnalysis = {
       id: `analysis-${Date.now()}-${this.slugify(user.name ?? user.email ?? 'user')}`,
@@ -309,7 +332,7 @@ export class Analyses implements OnInit {
 
     void (async () => {
       this.analyses = await this.analysisService.add(created);
-      await this.loadAnalysesForDate();
+      await this.loadAllAnalyses();
       this.resetForm();
     })();
   }
@@ -330,7 +353,7 @@ export class Analyses implements OnInit {
   removeAnalysis(id: string): void {
     void (async () => {
       this.analyses = await this.analysisService.remove(id);
-      await this.loadAnalysesForDate();
+      await this.loadAllAnalyses();
     })();
   }
 
@@ -370,24 +393,81 @@ export class Analyses implements OnInit {
     }
   }
 
+  setConfidence(value: number | string | null): void {
+    const parsed = Number(value);
+    const normalized = Number.isFinite(parsed) ? Math.round(parsed) : 3;
+    this.confidence = Math.max(1, Math.min(5, normalized));
+  }
+
   myAnalyses(): UserAnalysis[] {
     const currentUserId = this.authService.currentUser()?.id;
-    const filtered = this.analyses.filter(
-      (item) => item.analysisDate === this.analysisDate && item.authorId === currentUserId
-    );
-    return this.filterAnalysesBySearch(filtered);
+    return this.visibleAnalyses().filter((item) => item.authorId === currentUserId);
   }
 
   communityAnalyses(): UserAnalysis[] {
     const currentUserId = this.authService.currentUser()?.id;
-    const filtered = this.analyses.filter(
-      (item) => item.analysisDate === this.analysisDate && item.authorId !== currentUserId
-    );
-    return this.filterAnalysesBySearch(filtered);
+    return this.visibleAnalyses().filter((item) => item.authorId !== currentUserId);
   }
 
-  private filterAnalysesBySearch(items: UserAnalysis[]): UserAnalysis[] {
-    return items;
+  visibleAnalyses(): UserAnalysis[] {
+    const currentUserId = this.authService.currentUser()?.id;
+    const search = this.normalizeSearch(this.analysisViewSearch);
+
+    return this.analyses
+      .filter((item) => {
+        if (this.analysisViewDate !== 'all' && item.analysisDate !== this.analysisViewDate) {
+          return false;
+        }
+
+        if (this.analysisViewScope === 'mine' && item.authorId !== currentUserId) {
+          return false;
+        }
+
+        if (this.analysisViewScope === 'community' && item.authorId === currentUserId) {
+          return false;
+        }
+
+        if (!search) {
+          return true;
+        }
+
+        return this.normalizeSearch(
+          `${item.authorName} ${item.title} ${item.matchLabel} ${item.summary} ${item.pick ?? ''}`
+        ).includes(search);
+      })
+      .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  }
+
+  availableAnalysisDates(): string[] {
+    return Array.from(new Set(this.analyses.map((item) => item.analysisDate).filter(Boolean))).sort().reverse();
+  }
+
+  topAnalyzer(): AnalyzerStats | null {
+    return this.analyzerStats(this.analyses)[0] ?? null;
+  }
+
+  monthlyAnalyzer(): AnalyzerStats | null {
+    const monthKey = this.currentMonthKey();
+    return this.analyzerStats(this.analyses.filter((item) => item.analysisDate.startsWith(monthKey)))[0] ?? null;
+  }
+
+  canClaimMonthlyPrize(): boolean {
+    const user = this.currentUser();
+    const winner = this.monthlyAnalyzer();
+    return Boolean(user && winner && winner.authorId === user.id && !this.hasClaimedMonthlyPrize());
+  }
+
+  claimMonthlyPrize(): void {
+    if (!this.canClaimMonthlyPrize()) {
+      this.prizeMessage = this.hasClaimedMonthlyPrize()
+        ? 'Monthly prize already claimed.'
+        : 'Only the current monthly top analyzer can claim this reward.';
+      return;
+    }
+
+    this.betSlipService.addToBudget(10);
+    this.markMonthlyPrizeClaimed();
+    this.prizeMessage = '10.00 EUR was added to your betting bankroll.';
   }
 
   averageStars(analysis: UserAnalysis): string {
@@ -419,10 +499,60 @@ export class Analyses implements OnInit {
     const comment = this.reviewComments[analysisId]?.trim();
     void (async () => {
       this.analyses = await this.analysisService.addRating(analysisId, stars, comment);
-      await this.loadAnalysesForDate();
+      await this.loadAllAnalyses();
       this.reviewStars[analysisId] = stars;
       this.reviewComments[analysisId] = '';
     })();
+  }
+
+  private analyzerStats(items: UserAnalysis[]): AnalyzerStats[] {
+    const byAuthor = new Map<string, AnalyzerStats>();
+
+    for (const item of items) {
+      const current = byAuthor.get(item.authorId) ?? {
+        authorId: item.authorId,
+        authorName: item.authorName,
+        analyses: 0,
+        reviews: 0,
+        positiveReviews: 0,
+        averageStars: 0,
+        score: 0,
+      };
+
+      const reviewCount = item.ratings.length;
+      const stars = item.ratings.reduce((sum, rating) => sum + rating.stars, 0);
+      const positive = item.ratings.filter((rating) => rating.stars >= 4 || Boolean(rating.comment?.trim())).length;
+
+      current.analyses += 1;
+      current.reviews += reviewCount;
+      current.positiveReviews += positive;
+      current.score += reviewCount ? stars + positive * 1.5 : 0.5;
+      current.averageStars = current.reviews ? Math.round((current.score / Math.max(current.reviews, 1)) * 10) / 10 : 0;
+      byAuthor.set(item.authorId, current);
+    }
+
+    return Array.from(byAuthor.values())
+      .filter((item) => item.analyses > 0)
+      .sort((a, b) => b.score - a.score || b.positiveReviews - a.positiveReviews || b.analyses - a.analyses);
+  }
+
+  private currentMonthKey(): string {
+    return this.todayDate.slice(0, 7);
+  }
+
+  private prizeKey(): string {
+    const userId = this.currentUser()?.id ?? 'anonymous';
+    return `tipmaster-monthly-prize:${this.currentMonthKey()}:${userId}`;
+  }
+
+  private hasClaimedMonthlyPrize(): boolean {
+    return typeof localStorage !== 'undefined' && localStorage.getItem(this.prizeKey()) === 'claimed';
+  }
+
+  private markMonthlyPrizeClaimed(): void {
+    if (typeof localStorage !== 'undefined') {
+      localStorage.setItem(this.prizeKey(), 'claimed');
+    }
   }
 
   setReviewStars(analysisId: string, value: number | string | null): void {
@@ -552,7 +682,7 @@ export class Analyses implements OnInit {
     const kickoff = new Date(isoDate).getTime();
     const now = Date.now();
     const dayMs = 24 * 60 * 60 * 1000;
-    return kickoff >= now - dayMs && kickoff <= now + 7 * dayMs;
+    return kickoff > now && kickoff <= now + 7 * dayMs;
   }
 
   private getDateKey(date: Date): string {

@@ -53,56 +53,30 @@ export class AiAnalysisService {
     const canDraw = match.sportKey === 'soccer';
     const { tip, confidencePercent } = this.getTip(diff, canDraw);
     const confidence = Math.max(1, Math.min(5, Math.round(confidencePercent / 20)));
-    const favorite =
-      tip === '1' ? match.homeTeam : tip === '2' ? match.awayTeam : 'vyrovnany zapas';
+    const favorite = tip === '1' ? match.homeTeam : tip === '2' ? match.awayTeam : 'remiza';
     const kickoff = this.formatKickoff(match.kickoff);
     const risk = this.riskLabel(confidencePercent);
-    const sportContext = this.sportContext(match.sportKey);
     const matchupText =
       tip === 'X'
-        ? 'Matchup vyzera velmi tesne. Ani jedna strana nema v modeli jasnu vyhodu, preto dava zmysel opatrny pohlad na remizu alebo vyrovnany priebeh.'
-        : `${favorite} vychadza v modeli ako silnejsia strana vdaka kombinacii formy, utocneho profilu, defenzivy a zapasoveho kontextu.`;
+        ? 'Model vidi velmi tesny zapas bez jasnej prevahy jednej strany.'
+        : `${favorite} ma lepsi mix formy, utoku, defenzivy a domaceho/hostujuceho kontextu.`;
+    const sourceNote = realStats
+      ? `Forma je z poslednych dostupnych zapasov (${homeStats.gamesUsed ?? 0}/${awayStats.gamesUsed ?? 0}).`
+      : 'Pouzity je fallback model, preto pred podanim skontroluj zostavy a kurz.';
 
     return {
-      title: `AI analyza: ${match.homeTeam} vs ${match.awayTeam}`,
+      title: `${match.homeTeam} vs ${match.awayTeam}: tip ${tip}`,
       summary: [
-        `Zapasy: ${match.homeTeam} vs ${match.awayTeam}`,
-        `Sutaz: ${match.competition}`,
-        `Cas: ${kickoff}`,
-        '',
-        `Model hodnotenie: domaci score ${homeScore.toFixed(2)}, hostia score ${awayScore.toFixed(2)}.`,
-        `Domaci profil: forma ${homeStats.formScore}/5, utok ${homeStats.attack}/5, obrana ${homeStats.defense}/5, golovy priemer ${homeStats.goalsAvg}/5${this.statsSourceLabel(homeStats)}.`,
-        `Hostia profil: forma ${awayStats.formScore}/5, utok ${awayStats.attack}/5, obrana ${awayStats.defense}/5, golovy priemer ${awayStats.goalsAvg}/5${this.statsSourceLabel(awayStats)}.`,
-        '',
-        `AI pohlad: ${matchupText}`,
-        sportContext,
-        '',
-        `Tip: ${tip}`,
-        `Ocakavany priebeh: ${favorite}`,
-        `Confidence: ${confidencePercent}% (${confidence}/5)`,
-        `Riziko: ${risk}`,
-        '',
-        `Odporucanie: Tento tip by som hral konzervativne. Ak je bankroll obmedzeny, nedaval by som viac ako 1-3 % rozpoctu. ` +
-          `Pri nizsom confidence je lepsie tiket nepremotivovat a radsej ho brat ako single alebo malu cast kombinacie.`,
-        '',
-        realStats
-          ? `Poznamka: Forma je pocitana z poslednych dostupnych odohranych zapasov v ESPN feede. Pred podanim si este skontroluj zostavy, zranenia a kurz, lebo tieto veci sa mozu zmenit tesne pred zapasom.`
-          : `Poznamka: Nepodarilo sa nacitat posledne zapasy, preto je toto lokalny fallback zalozeny na deterministickych statistikach. Pred podanim si este skontroluj zostavy, zranenia, realnu formu a kurz.`,
+        `${match.competition} - ${kickoff}`,
+        `Tip: ${tip} | Confidence: ${confidence}/5 | Riziko: ${risk}`,
+        `Model: ${homeScore.toFixed(2)} vs ${awayScore.toFixed(2)}.`,
+        `Dovod: ${matchupText}`,
+        `Profil: ${match.homeTeam} forma ${homeStats.formScore}/5, ${match.awayTeam} forma ${awayStats.formScore}/5.`,
+        `Stake: konzervativne 1-3 % bankrollu. ${sourceNote}`,
       ].join('\n'),
       pick: tip,
       confidence,
     };
-  }
-
-  private sportContext(sportKey: string): string {
-    switch (sportKey) {
-      case 'soccer':
-        return 'Pri futbale je dolezite ratat s nizsim poctom golov a vyssou sancou remizy, preto ma value hlavne tip s rozumnym kurzom a nie slepe tlacenie favorita.';
-      case 'hockey':
-        return 'Pri hokeji je vacsia volatilita, lebo zapas mozu zlomit presilovky, brankar a predlzenie. Preto je pri vyrovnanych timoch dolezite drzat stake nizsie.';
-      default:
-        return 'Model porovnava zakladnu silu oboch stran a dava konzervativny tip podla rozdielu v ratingu.';
-    }
   }
 
   private riskLabel(confidencePercent: number): string {
@@ -350,14 +324,6 @@ export class AiAnalysisService {
     const a = this.normalizeName(left);
     const b = this.normalizeName(right);
     return a === b || a.includes(b) || b.includes(a);
-  }
-
-  private statsSourceLabel(stats: TeamStats): string {
-    if (stats.source === 'last5') {
-      return `, poslednych ${stats.gamesUsed ?? 0} zapasov`;
-    }
-
-    return ', fallback model';
   }
 
   private normalizeName(value: string): string {

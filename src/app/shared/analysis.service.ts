@@ -5,6 +5,7 @@ import {
   doc,
   getDocs,
   limit,
+  orderBy,
   query,
   setDoc,
   where,
@@ -102,6 +103,29 @@ export class AnalysisService {
       return withRatings;
     } catch {
       return this.getAll().filter((item) => item.analysisDate === dateKey);
+    }
+  }
+
+  async getAllAnalyses(): Promise<UserAnalysis[]> {
+    const db = firebaseDb;
+    if (!db) {
+      return this.getAll().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    }
+
+    try {
+      const q = query(collection(db, 'analyses'), orderBy('createdAt', 'desc'), limit(250));
+      const snapshot = await getDocs(q);
+      const analyses = snapshot.docs
+        .map((d) => this.normalizeAnalysis({ ...(d.data() as any), id: d.id }))
+        .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+      const withRatings = await Promise.all(analyses.map((item) => this.attachRatings(item)));
+      this.mergeIntoLocal(withRatings);
+      return this.mergeLists(withRatings, this.getAll()).sort(
+        (a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()
+      );
+    } catch {
+      return this.getAll().sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
     }
   }
 
